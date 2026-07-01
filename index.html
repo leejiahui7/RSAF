@@ -1,1 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summary of Key Insights from Gen AI Masterclass (1 Jul 2026)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --ink:#1B1A17;
+    --ink-soft:#5B564C;
+    --line:#DCD5C4;
+    --card:#FFFFFF;
+    --accent:#1F5E4E;
+    --accent-soft:#E4EEE9;
+    --gold:#B8863A;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px;}
+  header.hero{
+    padding:64px 24px 48px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; top:-120px; right:-120px;
+    width:340px; height:340px; border-radius:50%;
+    background:radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:18px;
+  }
+  .eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--gold);}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(28px, 4.4vw, 42px);
+    line-height:1.15;
+    margin:0 0 20px;
+    letter-spacing:-0.01em;
+    max-width:20ch;
+  }
+  .hero-sub{
+    font-size:16px;
+    color:var(--ink-soft);
+    max-width:56ch;
+    margin:0 0 28px;
+  }
+  .hero-meta{
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .pill{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:0.03em;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    color:var(--ink-soft);
+    background:var(--card);
+  }
 
+  section{padding:52px 24px;}
+  section.alt{background:#FBF9F4; border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .section-head{margin-bottom:30px;}
+  .section-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--gold);
+    letter-spacing:0.1em;
+    display:block;
+    margin-bottom:8px;
+  }
+  h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(21px, 2.8vw, 27px);
+    margin:0 0 10px;
+    letter-spacing:-0.01em;
+  }
+  .section-sub{color:var(--ink-soft); max-width:64ch; font-size:15px; margin:0;}
+
+  .grid3{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+  }
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  .card p{font-size:14px; color:var(--ink-soft); margin:0;}
+  .card .tag{
+    display:inline-block;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--accent);
+    background:var(--accent-soft);
+    padding:3px 9px;
+    border-radius:999px;
+    margin-bottom:12px;
+  }
+
+  .model-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+    gap:16px;
+  }
+  .model-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:22px;
+  }
+  .model-card h3{
+    font-family:'Fraunces', serif;
+    font-size:18px;
+    margin:0 0 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .model-card ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft);}
+  .model-card li{margin-bottom:6px;}
+  .swatch{width:10px; height:10px; border-radius:3px; display:inline-block;}
+
+  .funnel{display:flex; flex-direction:column; gap:14px;}
+  .funnel-row{display:grid; grid-template-columns:180px 1fr 52px; align-items:center; gap:14px;}
+  .funnel-label{font-size:13px; font-weight:600;}
+  .funnel-track{background:var(--line); border-radius:999px; height:10px; overflow:hidden;}
+  .funnel-fill{height:100%; border-radius:999px; background:var(--accent);}
+  .funnel-pct{font-family:'JetBrains Mono', monospace; font-size:13px; text-align:right; color:var(--ink-soft);}
+
+  .bullets{display:flex; flex-direction:column; gap:0;}
+  .bullet{
+    display:grid;
+    grid-template-columns:36px 1fr;
+    gap:16px;
+    padding:18px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .bullet:last-child{border-bottom:none;}
+  .bullet .num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+    color:var(--gold);
+    font-weight:600;
+  }
+  .bullet h4{margin:0 0 6px; font-size:15.5px; font-family:'Fraunces', serif; font-weight:600;}
+  .bullet p{margin:0; color:var(--ink-soft); font-size:14px;}
+
+  .tips{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px;}
+  .tip-card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;}
+  .tip-card h3{font-family:'Fraunces', serif; font-size:16px; margin:0 0 10px;}
+  .tip-card ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft);}
+  .tip-card li{margin-bottom:6px;}
+
+  .demo-frame-wrap{
+    border-radius:16px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 18px 46px rgba(27,26,23,0.12);
+  }
+  iframe.clock-embed{
+    width:100%;
+    height:760px;
+    border:none;
+    display:block;
+    background:#09090b;
+  }
+  .demo-caption{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:12px;
+    flex-wrap:wrap; gap:8px;
+  }
+  .demo-caption a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent);}
+
+  footer{
+    padding:32px 24px 48px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12.5px;
+    font-family:'JetBrains Mono', monospace;
+    letter-spacing:0.02em;
+  }
+
+  @media (max-width:640px){
+    .funnel-row{grid-template-columns:1fr; gap:6px;}
+    .funnel-pct{text-align:left;}
+    iframe.clock-embed{height:920px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>ST Gen AI (Advanced) Course · 1 July 2026</div>
+    <h1>Summary of Key Insights from Gen AI Masterclass (1 Jul 2026)</h1>
+    <p class="hero-sub">Consolidated notes on Claude, Gemini and ChatGPT. Covers model comparison, adoption data, and five working rules for effective use.</p>
+    <div class="hero-meta">
+      <span class="pill">3 models assessed</span>
+      <span class="pill">5 working rules</span>
+      <span class="pill">1 demo app</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">01 · KEY TAKEAWAY</span>
+      <h2>AI produces drafts. It does not make decisions.</h2>
+      <p class="section-sub">Models improved significantly this year. Final judgment remains with the user.</p>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <span class="tag">Prompting</span>
+        <h3>Keep prompts concise</h3>
+        <p>AI is a data processing tool. Excessive instructions in a prompt can degrade output quality.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Voice capture</span>
+        <h3>Capture voice data directly</h3>
+        <p>iPhone Notes live transcribe, Otter AI, and Whisper AI convert spoken input to text before drafting begins.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Model selection</span>
+        <h3>Match model to task</h3>
+        <p>Use a lighter model such as Haiku for routine tasks. Reserve a higher tier model such as Sonnet 5 for complex tasks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">02 · MODEL COMPARISON</span>
+      <h2>Claude, Gemini, and ChatGPT: distinct strengths</h2>
+      <p class="section-sub">Summary of comparative observations made during the session.</p>
+    </div>
+    <div class="model-row">
+      <div class="model-card">
+        <h3><span class="swatch" style="background:#1F5E4E"></span>Claude</h3>
+        <ul>
+          <li>Assessed as the strongest general model currently available.</li>
+          <li>Fable 5 is restricted for export in the US due to its capability level.</li>
+          <li>Use tiered models matched to task complexity rather than a single model for all tasks.</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h3><span class="swatch" style="background:#B8863A"></span>Gemini</h3>
+        <ul>
+          <li>Stronger performance for photo and video generation compared to Claude.</li>
+          <li>Canvas function builds a working app, such as a clock, in approximately five minutes.</li>
+          <li>Converts unstructured graphics or charts into structured tables.</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h3><span class="swatch" style="background:#8A8578"></span>ChatGPT</h3>
+        <ul>
+          <li>Add-in function operates within Excel and PowerPoint for summarising, pivot tables, and formatting tasks.</li>
+          <li>Restricted to personal laptops. Does not operate on managed work devices.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">03 · ADOPTION DATA</span>
+      <h2>AI usage concentrated at pre-sale stage</h2>
+      <p class="section-sub">Share of sellers using AI, by category, as presented in the session.</p>
+    </div>
+    <div class="funnel">
+      <div class="funnel-row">
+        <span class="funnel-label">Pre-sale management</span>
+        <div class="funnel-track"><div class="funnel-fill" style="width:83%; background:#1F5E4E;"></div></div>
+        <span class="funnel-pct">83%</span>
+      </div>
+      <div class="funnel-row">
+        <span class="funnel-label">Research and lead gen</span>
+        <div class="funnel-track"><div class="funnel-fill" style="width:74%; background:#2B7461;"></div></div>
+        <span class="funnel-pct">74%</span>
+      </div>
+      <div class="funnel-row">
+        <span class="funnel-label">Account management</span>
+        <div class="funnel-track"><div class="funnel-fill" style="width:61%; background:#B8863A;"></div></div>
+        <span class="funnel-pct">61%</span>
+      </div>
+      <div class="funnel-row">
+        <span class="funnel-label">Reporting and forecasting</span>
+        <div class="funnel-track"><div class="funnel-fill" style="width:49%; background:#C7A15F;"></div></div>
+        <span class="funnel-pct">49%</span>
+      </div>
+    </div>
+    <p class="section-sub" style="margin-top:20px;">AI usage is highest at the point of first contact and drafting. Usage is lowest for negotiation and closing, at 17 percent.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">04 · WORKING RULES</span>
+      <h2>Five rules for effective AI use</h2>
+      <p class="section-sub">Output of the in-session exercise: how should a sales team use AI well.</p>
+    </div>
+    <div class="bullets">
+      <div class="bullet">
+        <span class="num">01</span>
+        <div><h4>Use AI for the first draft only</h4><p>Let AI structure the initial message. Add the specific detail only the user would know before sending.</p></div>
+      </div>
+      <div class="bullet">
+        <span class="num">02</span>
+        <div><h4>Run pre-call research through AI every time</h4><p>This is the highest return use case. Feed it context to surface background and relevant signals before a conversation.</p></div>
+      </div>
+      <div class="bullet">
+        <span class="num">03</span>
+        <div><h4>Do not use AI for negotiation or closing</h4><p>Adoption data confirms minimal use at this stage. Trust and judgment do not template.</p></div>
+      </div>
+      <div class="bullet">
+        <span class="num">04</span>
+        <div><h4>Automate reporting and forecasting</h4><p>This is the most underused application. Time saved on admin converts directly to time on core tasks.</p></div>
+      </div>
+      <div class="bullet">
+        <span class="num">05</span>
+        <div><h4>Review all output before sending</h4><p>AI provides speed, not judgment. Always complete a final read-through before sending.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">05 · QUICK REFERENCE</span>
+      <h2>Practical tips</h2>
+    </div>
+    <div class="tips">
+      <div class="tip-card">
+        <h3>ChatGPT in Office</h3>
+        <ul>
+          <li>Select Add-in in Excel or PowerPoint to enable ChatGPT within the file.</li>
+          <li>Use for summarising data, building pivot tables, and fixing formatting.</li>
+          <li>Personal laptops only.</li>
+        </ul>
+      </div>
+      <div class="tip-card">
+        <h3>Gemini Canvas</h3>
+        <ul>
+          <li>Canvas builds working apps from a text description.</li>
+          <li>The clock app below was generated in approximately five minutes.</li>
+          <li>Illustrates the speed shift affecting software development timelines.</li>
+        </ul>
+      </div>
+      <div class="tip-card">
+        <h3>Voice capture</h3>
+        <ul>
+          <li>iPhone Notes live transcribe converts speech to text in real time.</li>
+          <li>Otter AI and Whisper AI are alternatives for longer recordings.</li>
+          <li>Feed the transcript to AI for a first structured draft, then edit manually.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-num">06 · DEMO</span>
+      <h2>App built in session: interactive clock</h2>
+      <p class="section-sub">Runs on live system time. The second hand responds to cursor position. Click and hold the tip of the second hand to set time manually.</p>
+    </div>
+    <div class="demo-frame-wrap">
+      <iframe class="clock-embed" src="clock.html" title="Interactive clock app built with Gemini Canvas" loading="lazy"></iframe>
+    </div>
+    <div class="demo-caption">
+      <span>Built with Gemini Canvas during the session</span>
+      <a href="clock.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  ST GEN AI (ADVANCED) COURSE · 1 JULY 2026
+</footer>
+
+</body>
+</html>
