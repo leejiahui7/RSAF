@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoPhysics - Interactive Tactile Clock</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 20px rgba(var(--accent-rgb), 0.35)',
+                        'neon-strong': '0 0 35px rgba(var(--accent-rgb), 0.6)',
+                        'inner-soft': 'inset 0 2px 10px rgba(0,0,0,0.2)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts for premium mechanical look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+        canvas {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        /* Custom scrollbar for control panel */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.25);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.45);
+        }
+        :root {
+            --accent-rgb: 99, 102, 241; /* Default Indigo */
+        }
+        .theme-cyber { --accent-rgb: 6, 182, 212; }    /* Cyan */
+        .theme-amber { --accent-rgb: 245, 158, 11; }  /* Amber */
+        .theme-rose { --accent-rgb: 244, 63, 94; }     /* Rose Gold / Pink */
+        .theme-emerald { --accent-rgb: 16, 185, 129; } /* Emerald */
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen overflow-x-hidden flex flex-col md:flex-row theme-cyber">
+
+    <!-- Ambient background glow elements -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
+
+    <!-- MAIN CHRONO CANVAS CONTAINER -->
+    <main class="flex-1 flex flex-col items-center justify-center p-4 md:p-8 z-10 select-none relative">
+        <!-- Interactive Header with status bar -->
+        <div class="w-full max-w-lg mb-6 flex items-center justify-between border-b border-zinc-800/80 pb-4">
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent">
+                    CHRONO<span class="text-[rgba(var(--accent-rgb),1)] font-medium">PHYSICS</span>
+                </h1>
+                <p class="text-xs text-zinc-500 font-mono mt-0.5 uppercase tracking-wider" id="engine-status">SYSTEM ACTIVE • 120FPS EMULATION</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- Mode Badge -->
+                <span id="mode-badge" class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm transition-all duration-300">
+                    LIVE TIME
+                </span>
+            </div>
+        </div>
+
+        <!-- Clock Core Wrapper -->
+        <div class="relative group/clock">
+            <!-- Outer glass reflection ring -->
+            <div class="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-zinc-700/10 via-zinc-800/20 to-zinc-600/10 blur-sm opacity-70 group-hover/clock:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+            
+            <!-- Dynamic Neon Radial Halo -->
+            <div id="glow-halo" class="absolute -inset-1 rounded-full opacity-20 group-hover/clock:opacity-30 blur-xl transition-all duration-500 pointer-events-none" style="background: radial-gradient(circle, rgba(var(--accent-rgb), 0.8) 0%, transparent 70%);"></div>
+
+            <!-- The main clock canvas viewport -->
+            <div class="relative w-[320px] h-[320px] sm:w-[420px] sm:h-[420px] bg-zinc-900/90 rounded-full border border-zinc-800/80 shadow-2xl overflow-hidden flex items-center justify-center backdrop-blur-md">
+                <canvas id="clockCanvas" class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+            </div>
+        </div>
+
+        <!-- Realtime Telemetry Display -->
+        <div class="w-full max-w-lg mt-8 grid grid-cols-3 gap-3">
+            <div class="bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-3 backdrop-blur-sm">
+                <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider block mb-1">Cursor Distance</span>
+                <span id="telemetry-distance" class="text-lg font-bold font-mono text-zinc-300">0.0 px</span>
+            </div>
+            <div class="bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-3 backdrop-blur-sm">
+                <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider block mb-1">Sec Hand Tension</span>
+                <span id="telemetry-tension" class="text-lg font-bold font-mono text-zinc-300">0%</span>
+            </div>
+            <div class="bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-3 backdrop-blur-sm">
+                <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider block mb-1">Time Velocity</span>
+                <span id="telemetry-velocity" class="text-lg font-bold font-mono text-zinc-300">1.0x</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- CONTROL PANEL & SETTINGS -->
+    <aside class="w-full md:w-[380px] bg-zinc-900/60 md:border-l border-t md:border-t-0 border-zinc-800/80 p-6 md:p-8 backdrop-blur-xl flex flex-col justify-between z-10">
+        <div class="space-y-8">
+            <!-- Live Digital Readout -->
+            <div class="bg-black/40 border border-zinc-800/80 rounded-2xl p-4 shadow-inner-soft text-center font-mono">
+                <span class="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">SYSTEM TIME</span>
+                <div class="text-3xl font-bold tracking-tight text-white flex justify-center items-center gap-1">
+                    <span id="dig-hour">00</span>
+                    <span class="text-zinc-600 animate-pulse">:</span>
+                    <span id="dig-min">00</span>
+                    <span class="text-zinc-600 animate-pulse">:</span>
+                    <span id="dig-sec" class="text-[rgba(var(--accent-rgb),1)]">00</span>
+                    <span class="text-xs text-zinc-500 ml-1 font-normal" id="dig-ampm">AM</span>
+                </div>
+                <div id="dig-full-date" class="text-[10px] text-zinc-500 mt-2 uppercase tracking-wide">
+                    Wednesday, July 1, 2026
+                </div>
+            </div>
+
+            <!-- Interactive Mode Switcher -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Temporal Dynamics Mode</h3>
+                <div class="grid grid-cols-2 gap-2 bg-black/30 p-1.5 rounded-xl border border-zinc-800/50">
+                    <button id="btn-mode-live" class="flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-zinc-800/80 text-white shadow-sm">
+                        <span>Live Sync</span>
+                        <span class="text-[9px] font-mono font-normal text-zinc-400 mt-0.5">Real-time Clock</span>
+                    </button>
+                    <button id="btn-mode-physics" class="flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white">
+                        <span>Interstellar Mode</span>
+                        <span class="text-[9px] font-mono font-normal text-zinc-500 mt-0.5">Scrub & Gravity</span>
+                    </button>
+                </div>
+                <p class="text-xs text-zinc-500 leading-relaxed" id="mode-desc">
+                    In <strong>Live Sync</strong>, the clock runs perfectly. Hovering over the clock face creates a soft magnetic attraction on the second hand.
+                </p>
+            </div>
+
+            <!-- Sound & Synth Controls -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Haptic Audio Synthesis</h3>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-sound" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(var(--accent-rgb),1)] peer-checked:after:bg-white"></div>
+                    </label>
+                </div>
+                
+                <div class="bg-black/20 p-3.5 rounded-xl border border-zinc-800/40 space-y-3">
+                    <div>
+                        <div class="flex justify-between text-[11px] text-zinc-400 mb-1 font-mono">
+                            <span>Engine Output Pitch</span>
+                            <span id="lbl-pitch">Mid</span>
+                        </div>
+                        <input type="range" id="slider-pitch" min="0" max="2" value="1" step="1" class="w-full accent-[rgba(var(--accent-rgb),1)] bg-zinc-800 h-1 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Physics Tuning Panel -->
+            <div class="space-y-4">
+                <h3 class="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Magnetism & Physics</h3>
+                
+                <div class="space-y-4 bg-black/20 p-4 rounded-xl border border-zinc-800/40">
+                    <!-- Gravity Slider -->
+                    <div>
+                        <div class="flex justify-between text-[11px] text-zinc-400 mb-1 font-mono">
+                            <span>Gravity / Elastic Pull</span>
+                            <span id="lbl-gravity">Strong</span>
+                        </div>
+                        <input type="range" id="slider-gravity" min="5" max="30" value="18" class="w-full accent-[rgba(var(--accent-rgb),1)] bg-zinc-800 h-1 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Damping Slider -->
+                    <div>
+                        <div class="flex justify-between text-[11px] text-zinc-400 mb-1 font-mono">
+                            <span>Air Friction (Damping)</span>
+                            <span id="lbl-damping">Smooth</span>
+                        </div>
+                        <input type="range" id="slider-damping" min="80" max="98" value="92" class="w-full accent-[rgba(var(--accent-rgb),1)] bg-zinc-800 h-1 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Drag to Warp Time -->
+                    <div class="flex items-center justify-between pt-1 border-t border-zinc-800/40">
+                        <span class="text-xs text-zinc-400">Time dilation inertia</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-inertia" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(var(--accent-rgb),1)] peer-checked:after:bg-white"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accent Customization -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Hologram Engine Tint</h3>
+                <div class="flex items-center gap-3">
+                    <button onclick="setTheme('cyber')" class="w-7 h-7 rounded-full bg-cyan-500 border-2 border-transparent hover:border-white transition-all shadow-sm flex items-center justify-center text-[10px] text-black font-extrabold"></button>
+                    <button onclick="setTheme('amber')" class="w-7 h-7 rounded-full bg-amber-500 border-2 border-transparent hover:border-white transition-all shadow-sm flex items-center justify-center text-[10px] text-black font-extrabold"></button>
+                    <button onclick="setTheme('rose')" class="w-7 h-7 rounded-full bg-rose-500 border-2 border-transparent hover:border-white transition-all shadow-sm flex items-center justify-center text-[10px] text-black font-extrabold"></button>
+                    <button onclick="setTheme('emerald')" class="w-7 h-7 rounded-full bg-emerald-500 border-2 border-transparent hover:border-white transition-all shadow-sm flex items-center justify-center text-[10px] text-black font-extrabold"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Instructions footer -->
+        <div class="mt-8 pt-4 border-t border-zinc-800/80">
+            <div class="flex items-start gap-2.5 text-zinc-500 text-xs leading-relaxed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[rgba(var(--accent-rgb),1)] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p>
+                    <strong>Instruction:</strong> Click and hold the tip of the second hand to wind or flick time. When hovering nearby, watch the hand flex dynamically.
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Client Script Core containing Clock Logic and Web Audio Synth -->
+    <script>
+        // Core Web Audio API Synthesizer
+        let audioCtx = null;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTick(freq = 800, type = 'sine', duration = 0.005, volume = 0.15) {
+            const soundEnabled = document.getElementById('toggle-sound').checked;
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            // Resume audio context if suspended (browser security auto-suspend)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                // Exponential decay envelope for snappy clicking
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                // Audio silent fallback if blocked
+            }
+        }
+
+        // Quick theme switcher helper
+        function setTheme(themeName) {
+            document.body.className = document.body.className.replace(/theme-\w+/g, '');
+            document.body.classList.add('theme-' + themeName);
+            // Re-render clock to immediately reflect theme changes
+            renderClock();
+        }
+
+        // Get RGB dynamic value for rendering
+        function getAccentColor() {
+            const comp = getComputedStyle(document.body);
+            const rgbStr = comp.getPropertyValue('--accent-rgb').trim();
+            return `rgb(${rgbStr})`;
+        }
+
+        // Element selection
+        const canvas = document.getElementById('clockCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Mode Management
+        let isLiveMode = true; // True for system time sync, False for physics exploration mode
+        
+        // Physical parameters
+        let gravityPull = 0.18; // Pull rate towards target
+        let dampingFactor = 0.92; // Inertia loss per frame
+        let hasInertia = true;
+
+        // Interactive Tracking State
+        let mouseX = null;
+        let mouseY = null;
+        let isHovered = false;
+        let isDragging = false;
+        let distanceToCenter = 0;
+
+        // Current Angle States
+        let secondAngle = 0; // Actual angle (radians) of the rendering second hand
+        let secondVelocity = 0; // Rotational velocity of the second hand (for momentum/physics)
+        let targetAngle = 0; // Where the second hand should ideally point
+
+        // Derived Clock Gear Ratios State
+        let currentSecond = 0;
+        let currentMinute = 0;
+        let currentHour = 0;
+        let lastPlayedSecond = -1; // Prevent duplicate sounds in Live Mode
+
+        // Initialize Canvas Sizing & High DPI handling
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Convert angle [-PI, PI] to clean clockwise 12-hour normalized representation
+        function angleToTimeSeconds(angle) {
+            // Angle is 0 at 12 o'clock, positive clockwise
+            let normalizedAngle = angle % (Math.PI * 2);
+            if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
+            const percentage = normalizedAngle / (Math.PI * 2);
+            return percentage * 60;
+        }
+
+        // Wrap angle utility to avoid continuous multi-rotation jumps on standard easing
+        function normalizeAngleDiff(diff) {
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            return diff;
+        }
+
+        // Synchronize System Time
+        function syncTimeWithSystem() {
+            const now = new Date();
+            const ms = now.getMilliseconds();
+            currentSecond = now.getSeconds() + ms / 1000;
+            currentMinute = now.getMinutes() + currentSecond / 60;
+            currentHour = now.getHours() + currentMinute / 60;
+        }
+
+        // Synthesizer Pitch Map settings
+        let pitchSetting = 1; // 0: low, 1: mid, 2: high
+        function getTickFrequency(isAction) {
+            if (isAction) {
+                return pitchSetting === 0 ? 1200 : pitchSetting === 1 ? 2200 : 3500;
+            }
+            return pitchSetting === 0 ? 300 : pitchSetting === 1 ? 600 : 1100;
+        }
+
+        // Initialize state
+        syncTimeWithSystem();
+        secondAngle = (currentSecond / 60) * Math.PI * 2;
+
+        // Main Simulation Loop
+        function stepPhysics() {
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const secondHandLength = rect.width * 0.42;
+
+            if (isLiveMode) {
+                // --- LIVE SYSTEM MODE ---
+                syncTimeWithSystem();
+                const systemTargetAngle = (currentSecond / 60) * Math.PI * 2;
+
+                // Sound trigger for normal live tick
+                const floorSec = Math.floor(currentSecond);
+                if (floorSec !== lastPlayedSecond) {
+                    playTick(getTickFrequency(false), 'sine', 0.008, 0.1);
+                    lastPlayedSecond = floorSec;
+                }
+
+                if (isHovered && mouseX !== null && mouseY !== null) {
+                    // Calculate mouse position relative to center
+                    const dx = mouseX - cx;
+                    const dy = mouseY - cy;
+                    const mouseDist = Math.sqrt(dx * dx + dy * dy);
+                    distanceToCenter = mouseDist;
+
+                    // Compute mouse angle offset
+                    let mouseAngle = Math.atan2(dx, -dy);
+                    if (mouseAngle < 0) mouseAngle += Math.PI * 2;
+
+                    // Is cursor close to the second hand tip?
+                    const tipX = cx + Math.sin(secondAngle) * secondHandLength;
+                    const tipY = cy - Math.cos(secondAngle) * secondHandLength;
+                    const distToTip = Math.sqrt((mouseX - tipX) * (mouseX - tipX) + (mouseY - tipY) * (mouseY - tipY));
+
+                    // Interactive magnetism overlay (Tether/Elastic pull)
+                    if (distToTip < 110) {
+                        // Blend target between actual system time and mouse cursor position based on closeness
+                        const magneticInfluence = Math.max(0, 1 - distToTip / 110);
+                        let diff = normalizeAngleDiff(mouseAngle - systemTargetAngle);
+                        targetAngle = systemTargetAngle + diff * magneticInfluence * 0.85;
+                        
+                        // Set Telemetry telemetry
+                        document.getElementById('telemetry-tension').innerText = `${Math.round(magneticInfluence * 100)}%`;
+                        document.getElementById('telemetry-velocity').innerText = "Live Synced";
+                    } else {
+                        targetAngle = systemTargetAngle;
+                        document.getElementById('telemetry-tension').innerText = "0%";
+                        document.getElementById('telemetry-velocity').innerText = "1.0x";
+                    }
+                } else {
+                    targetAngle = systemTargetAngle;
+                    distanceToCenter = 0;
+                    document.getElementById('telemetry-tension').innerText = "0%";
+                    document.getElementById('telemetry-velocity').innerText = "1.0x";
+                }
+
+                // Smooth spring physics for second hand movement
+                let diff = normalizeAngleDiff(targetAngle - secondAngle);
+                secondVelocity = secondVelocity * dampingFactor + diff * gravityPull;
+                secondAngle += secondVelocity;
+
+            } else {
+                // --- INTERSTELLAR PHYSICS/SCRUB MODE ---
+                if (isDragging && mouseX !== null && mouseY !== null) {
+                    // Update state with mouse position
+                    const dx = mouseX - cx;
+                    const dy = mouseY - cy;
+                    let mouseAngle = Math.atan2(dx, -dy);
+                    if (mouseAngle < 0) mouseAngle += Math.PI * 2;
+
+                    // Calculate drag angular velocity to trigger mechanical ticking sounds
+                    const angleDelta = Math.abs(normalizeAngleDiff(mouseAngle - secondAngle));
+                    if (angleDelta > 0.1) {
+                        playTick(getTickFrequency(true), 'triangle', 0.015, 0.05);
+                    }
+
+                    // Directly pin second hand to cursor
+                    secondAngle = mouseAngle;
+                    secondVelocity = 0;
+
+                    // Reverse engineer time state from the custom second angle
+                    const newSeconds = angleToTimeSeconds(secondAngle);
+                    
+                    // Increment and update relative clock hands
+                    let deltaSec = newSeconds - (currentSecond % 60);
+                    if (deltaSec > 30) deltaSec -= 60;
+                    if (deltaSec < -30) deltaSec += 60;
+
+                    currentSecond = (currentSecond + deltaSec) % 60;
+                    if (currentSecond < 0) currentSecond += 60;
+
+                    // Let minutes and hours scrub proportionally
+                    currentMinute = (currentMinute + deltaSec / 60) % 60;
+                    if (currentMinute < 0) currentMinute += 60;
+
+                    currentHour = (currentHour + deltaSec / 3600) % 12;
+                    if (currentHour < 0) currentHour += 12;
+
+                    document.getElementById('telemetry-tension').innerText = "LINKED";
+                    document.getElementById('telemetry-velocity').innerText = `${(deltaSec * 60).toFixed(1)}x`;
+
+                } else {
+                    // Drift/Inertial Spin if user flicked/released the hand
+                    if (hasInertia && Math.abs(secondVelocity) > 0.0001) {
+                        secondAngle += secondVelocity;
+                        secondVelocity *= dampingFactor;
+
+                        // Translate continuous drag decay into structural gear translation
+                        const addedSeconds = (secondVelocity / (Math.PI * 2)) * 60;
+                        currentSecond = (currentSecond + addedSeconds) % 60;
+                        currentMinute = (currentMinute + addedSeconds / 60) % 60;
+                        currentHour = (currentHour + addedSeconds / 3600) % 12;
+
+                        if (Math.abs(secondVelocity) > 0.01) {
+                            playTick(getTickFrequency(false) * (1 + Math.abs(secondVelocity)), 'sawtooth', 0.012, 0.04);
+                        }
+                    } else {
+                        secondVelocity = 0;
+                    }
+                    
+                    document.getElementById('telemetry-tension').innerText = "0%";
+                    document.getElementById('telemetry-velocity').innerText = `${(secondVelocity * 10).toFixed(2)} r/s`;
+                }
+            }
+
+            // Sync mechanical status dashboard with current derived clock status
+            syncDigitalStats();
+        }
+
+        // Sync Digital Display Board
+        function syncDigitalStats() {
+            let displaySec = Math.floor(currentSecond % 60);
+            let displayMin = Math.floor(currentMinute % 60);
+            let displayHour = Math.floor(currentHour % 12);
+            if (displayHour === 0) displayHour = 12;
+
+            // Simple zero-padding
+            document.getElementById('dig-hour').innerText = String(displayHour).padStart(2, '0');
+            document.getElementById('dig-min').innerText = String(displayMin).padStart(2, '0');
+            document.getElementById('dig-sec').innerText = String(displaySec).padStart(2, '0');
+
+            // Set am/pm
+            const now = new Date();
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            document.getElementById('dig-ampm').innerText = ampm;
+
+            // Distance sensor telemetry updates
+            document.getElementById('telemetry-distance').innerText = `${Math.round(distanceToCenter)} px`;
+        }
+
+        // Render Canvas Visual Components
+        function renderClock() {
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const radius = rect.width * 0.46;
+            const accentColor = getAccentColor();
+
+            // Clear frame
+            ctx.clearRect(0, 0, rect.width, rect.height);
+
+            // 1. Render Clock Dial Base Rim (Shadow/Bezel)
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#09090b'; // dark inner shadow body
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#27272a'; // outer border ring
+            ctx.stroke();
+
+            // 2. Render Outer Minute/Hour Tick Markers
+            for (let i = 0; i < 60; i++) {
+                const angle = (i / 60) * Math.PI * 2;
+                const isHour = i % 5 === 0;
+                
+                const startRadius = isHour ? radius - 15 : radius - 8;
+                const endRadius = radius - 3;
+                
+                const sx = cx + Math.sin(angle) * startRadius;
+                const sy = cy - Math.cos(angle) * startRadius;
+                const ex = cx + Math.sin(angle) * endRadius;
+                const ey = cy - Math.cos(angle) * endRadius;
+
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.strokeStyle = isHour ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.12)';
+                ctx.lineWidth = isHour ? 2 : 1.2;
+                ctx.stroke();
+
+                // Write hour numbers
+                if (isHour) {
+                    const textDist = radius - 28;
+                    const tx = cx + Math.sin(angle) * textDist;
+                    const ty = cy - Math.cos(angle) * textDist + 4.5;
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    
+                    let hr = i / 5;
+                    if (hr === 0) hr = 12;
+                    ctx.fillText(hr.toString(), tx, ty);
+                }
+            }
+
+            // 3. Render Center Mechanical Gears Graphics
+            ctx.beginPath();
+            ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(24, 24, 27, 0.8)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1.5;
+            ctx.fill();
+            ctx.stroke();
+
+            // 4. Draw HOUR HAND (Wide, Metallic)
+            const hrLength = radius * 0.52;
+            const hrAngle = (currentHour / 12) * Math.PI * 2;
+            const hrX = cx + Math.sin(hrAngle) * hrLength;
+            const hrY = cy - Math.cos(hrAngle) * hrLength;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(hrX, hrY);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#f4f4f5'; // Bright white/grey hour hand
+            ctx.lineWidth = 6;
+            ctx.stroke();
+
+            // 5. Draw MINUTE HAND (Medium width, sleek tapered)
+            const minLength = radius * 0.72;
+            const minAngle = (currentMinute / 60) * Math.PI * 2;
+            const minX = cx + Math.sin(minAngle) * minLength;
+            const minY = cy - Math.cos(minAngle) * minLength;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(minX, minY);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#a1a1aa'; // Muted grey minute hand
+            ctx.lineWidth = 4.2;
+            ctx.stroke();
+
+            // 6. Draw SECOND HAND WITH ELASTIC BEND/SPRING PHYSIC VISUALS
+            const secLength = radius * 0.82;
+            let secX = cx + Math.sin(secondAngle) * secLength;
+            let secY = cy - Math.cos(secondAngle) * secLength;
+
+            // Generate bending / elasticity deformation when under heavy pull
+            let controlX = cx + Math.sin(secondAngle) * (secLength * 0.45);
+            let controlY = cy - Math.cos(secondAngle) * (secLength * 0.45);
+
+            if (isHovered && mouseX !== null && mouseY !== null && !isDragging) {
+                // Determine pulling distance relative to raw center direction
+                const idealTipX = cx + Math.sin(targetAngle) * secLength;
+                const idealTipY = cy - Math.cos(targetAngle) * secLength;
+                const offsetDistance = Math.sqrt((secX - idealTipX) * (secX - idealTipX) + (secY - idealTipY) * (secY - idealTipY));
+                
+                // Warp control line when under mechanical load to visualize elastic bend
+                if (offsetDistance > 4) {
+                    controlX += (mouseX - controlX) * 0.08;
+                    controlY += (mouseY - controlY) * 0.08;
+                }
+            }
+
+            // Draw Second Hand Curve
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.quadraticCurveTo(controlX, controlY, secX, secY);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Decorative balance tail on the counter-side of second hand
+            const tailX = cx - Math.sin(secondAngle) * 25;
+            const tailY = cy + Math.cos(secondAngle) * 25;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(tailX, tailY);
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 3.5;
+            ctx.stroke();
+
+            // Tip node (Magnetic tracking ring / Interactive Handle)
+            ctx.beginPath();
+            ctx.arc(secX, secY, isDragging ? 7.5 : 5.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = accentColor;
+            ctx.fill();
+            // Restore shadow properties
+            ctx.shadowBlur = 0;
+
+            // Outer ring at hand tip representing mouse attraction field
+            if (isHovered && !isDragging) {
+                ctx.beginPath();
+                ctx.arc(secX, secY, 15, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // 7. Core Axle Cover Pin
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#09090b';
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = accentColor;
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // --- Interaction & Event Handlers ---
+
+        function updateMouseCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Multi-platform support for Touch Events
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            mouseX = clientX - rect.left;
+            mouseY = clientY - rect.top;
+        }
+
+        // Check if mouse click hits the interactive tip handle of second hand
+        function isHittingHandTip(mx, my) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const radius = rect.width * 0.46;
+            const secLength = radius * 0.82;
+
+            const tipX = cx + Math.sin(secondAngle) * secLength;
+            const tipY = cy - Math.cos(secondAngle) * secLength;
+
+            const clickDistance = Math.sqrt((mx - tipX) * (mx - tipX) + (my - tipY) * (my - tipY));
+            // Generous 38px click buffer zone
+            return clickDistance < 38;
+        }
+
+        // Canvas Input Listeners
+        canvas.addEventListener('mousedown', (e) => {
+            initAudio(); // Warm audio engine on click
+            updateMouseCoordinates(e);
+            
+            if (isHittingHandTip(mouseX, mouseY)) {
+                isDragging = true;
+                // Temporarily bypass Live Mode state to drag
+                isLiveMode = false;
+                
+                // Force Update Controls
+                setInterfaceStateForDragging();
+                playTick(getTickFrequency(true), 'sine', 0.05, 0.2);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            updateMouseCoordinates(e);
+            isHovered = true;
+            
+            // Track drag and calculate angular momentums
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+                const dx = mouseX - cx;
+                const dy = mouseY - cy;
+                let mouseAngle = Math.atan2(dx, -dy);
+                if (mouseAngle < 0) mouseAngle += Math.PI * 2;
+
+                // Track continuous angular velocity velocity
+                const lastAngle = secondAngle;
+                const delta = normalizeAngleDiff(mouseAngle - lastAngle);
+                secondVelocity = secondVelocity * 0.5 + delta * 0.5; // Damp and register speed
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                playTick(getTickFrequency(true) * 0.5, 'triangle', 0.02, 0.1);
+                
+                // If user was in live mode initially, smoothly return
+                const wasLive = document.getElementById('btn-mode-live').classList.contains('bg-zinc-800/80');
+                if (wasLive) {
+                    isLiveMode = true;
+                    document.getElementById('mode-badge').innerText = "LIVE TIME";
+                    document.getElementById('mode-badge').className = "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm";
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isHovered = false;
+            mouseX = null;
+            mouseY = null;
+            if (isDragging) {
+                isDragging = false;
+                const wasLive = document.getElementById('btn-mode-live').classList.contains('bg-zinc-800/80');
+                if (wasLive) {
+                    isLiveMode = true;
+                }
+            }
+        });
+
+        // Touch Device Event Adapters
+        canvas.addEventListener('touchstart', (e) => {
+            initAudio();
+            updateMouseCoordinates(e);
+            if (isHittingHandTip(mouseX, mouseY)) {
+                isDragging = true;
+                isLiveMode = false;
+                setInterfaceStateForDragging();
+                playTick(getTickFrequency(true), 'sine', 0.05, 0.2);
+                e.preventDefault(); // Stop mobile scroll pull-to-refresh
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            updateMouseCoordinates(e);
+            isHovered = true;
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+                const dx = mouseX - cx;
+                const dy = mouseY - cy;
+                let mouseAngle = Math.atan2(dx, -dy);
+                if (mouseAngle < 0) mouseAngle += Math.PI * 2;
+
+                const lastAngle = secondAngle;
+                const delta = normalizeAngleDiff(mouseAngle - lastAngle);
+                secondVelocity = secondVelocity * 0.5 + delta * 0.5;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                const wasLive = document.getElementById('btn-mode-live').classList.contains('bg-zinc-800/80');
+                if (wasLive) {
+                    isLiveMode = true;
+                    document.getElementById('mode-badge').innerText = "LIVE TIME";
+                    document.getElementById('mode-badge').className = "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm";
+                }
+            }
+        });
+
+        // Interface synchronization helpers
+        function setInterfaceStateForDragging() {
+            document.getElementById('mode-badge').innerText = "SCRUB MODE";
+            document.getElementById('mode-badge').className = "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-sm";
+        }
+
+        // --- Controller Panel Inputs ---
+
+        // Mode Switching Toggle logic
+        const btnLive = document.getElementById('btn-mode-live');
+        const btnPhysics = document.getElementById('btn-mode-physics');
+        const modeDesc = document.getElementById('mode-desc');
+
+        btnLive.addEventListener('click', () => {
+            isLiveMode = true;
+            btnLive.className = "flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-zinc-800/80 text-white shadow-sm";
+            btnPhysics.className = "flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white";
+            document.getElementById('mode-badge').innerText = "LIVE TIME";
+            document.getElementById('mode-badge').className = "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm";
+            modeDesc.innerHTML = "In <strong>Live Sync</strong>, the clock runs perfectly. Hovering over the clock face creates a soft magnetic attraction on the second hand.";
+            playTick(700, 'sine', 0.05, 0.1);
+        });
+
+        btnPhysics.addEventListener('click', () => {
+            isLiveMode = false;
+            btnPhysics.className = "flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-zinc-800/80 text-white shadow-sm";
+            btnLive.className = "flex flex-col items-center justify-center p-2.5 rounded-lg text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white";
+            document.getElementById('mode-badge').innerText = "INTERSTELLAR";
+            document.getElementById('mode-badge').className = "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm";
+            modeDesc.innerHTML = "In <strong>Interstellar Mode</strong>, you dictate the passage of time! Grab the second hand to fast-forward, reverse, or swing time with momentum.";
+            playTick(500, 'sine', 0.05, 0.1);
+        });
+
+        // Tuning inputs
+        document.getElementById('slider-gravity').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            gravityPull = val / 100;
+            const label = document.getElementById('lbl-gravity');
+            if (val < 10) label.innerText = "Loose";
+            else if (val < 20) label.innerText = "Strong";
+            else label.innerText = "Rigid Snap";
+        });
+
+        document.getElementById('slider-damping').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            dampingFactor = val / 100;
+            const label = document.getElementById('lbl-damping');
+            if (val < 85) label.innerText = "Heavy Air";
+            else if (val < 94) label.innerText = "Smooth";
+            else label.innerText = "Vacuum Drift";
+        });
+
+        document.getElementById('slider-pitch').addEventListener('input', (e) => {
+            pitchSetting = parseInt(e.target.value);
+            const label = document.getElementById('lbl-pitch');
+            if (pitchSetting === 0) label.innerText = "Low-Freq Click";
+            else if (pitchSetting === 1) label.innerText = "Mechanical Tick";
+            else label.innerText = "High Sharp Metal";
+        });
+
+        document.getElementById('toggle-inertia').addEventListener('change', (e) => {
+            hasInertia = e.target.checked;
+        });
+
+        // Sync local digital calendar
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const dateObj = new Date();
+        const dateString = `${days[dateObj.getDay()]}, ${months[dateObj.getMonth()]} ${dateObj.getDate()}, ${dateObj.getFullYear()}`;
+        document.getElementById('dig-full-date').innerText = dateString;
+
+        // Loop Runner orchestrating Physics + Draw steps at up to 120 FPS
+        function runEngine() {
+            stepPhysics();
+            renderClock();
+            requestAnimationFrame(runEngine);
+        }
+
+        // Start Clock Engine
+        runEngine();
+    </script>
+</body>
+</html>

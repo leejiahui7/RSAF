@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGP-TAC | Singapore Airbase Interactive Tactical Command</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Font for Military Grid Look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #030712;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom map cursor and interactive highlights */
+        #map {
+            cursor: crosshair !important;
+        }
+        /* Radar Sweep Effect on UI */
+        .radar-sweep {
+            position: relative;
+            overflow: hidden;
+        }
+        .radar-sweep::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, rgba(34, 197, 94, 0.15) 10%, transparent 40%);
+            animation: sweep 4s linear infinite;
+            pointer-events: none;
+            z-index: 10;
+        }
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-zinc-100 min-h-screen flex flex-col overflow-hidden">
+
+    <!-- PRIMARY NAVIGATION / HEADER BAR -->
+    <header class="bg-zinc-950 border-b border-zinc-800/80 px-6 py-3 shrink-0 flex items-center justify-between z-50">
+        <div class="flex items-center gap-4">
+            <!-- RSAF-style concentric target icon -->
+            <div class="relative w-8 h-8 flex items-center justify-center">
+                <span class="absolute animate-ping w-8 h-8 rounded-full bg-emerald-500/20 opacity-75"></span>
+                <div class="w-6 h-6 rounded-full border-4 border-red-600 bg-white flex items-center justify-center">
+                    <div class="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">SGP-TAC // SECURE</span>
+                    <h1 class="text-lg font-bold tracking-tight text-white uppercase">Singapore Air Defense Command</h1>
+                </div>
+                <p class="text-[10px] text-zinc-500 font-mono tracking-widest uppercase mt-0.5">Airbase Deployment Map</p>
+            </div>
+        </div>
+
+        <!-- Realtime UTC/SGT Clock -->
+        <div class="hidden md:flex items-center gap-6 font-mono text-xs text-zinc-400">
+            <div class="text-right">
+                <span class="block text-[9px] text-zinc-600 uppercase">LOCAL (SGT)</span>
+                <span id="clock-sgt" class="font-bold text-emerald-400">--:--:--</span>
+            </div>
+            <div class="text-right border-l border-zinc-800/80 pl-6">
+                <span class="block text-[9px] text-zinc-600 uppercase">ZULU (UTC)</span>
+                <span id="clock-zulu" class="font-bold">--:--:--</span>
+            </div>
+            <div class="text-right border-l border-zinc-800/80 pl-6">
+                <span class="block text-[9px] text-zinc-600 uppercase">SYSTEM TETHER</span>
+                <span class="text-emerald-500 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> ONLINE
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT GRID -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- LEFT CONTROL SIDEBAR -->
+        <aside class="w-full lg:w-[420px] bg-zinc-950 border-r border-zinc-800/80 flex flex-col justify-between overflow-y-auto z-40 relative">
+            
+            <!-- Dashboard Menu Panels -->
+            <div class="p-4 space-y-6">
+                
+                <!-- System Diagnostics Card -->
+                <div class="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-4 relative overflow-hidden">
+                    <div class="absolute top-2 right-2 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse" id="alert-indicator"></span>
+                        <span class="text-[9px] font-mono text-zinc-500" id="alert-label">RADAR SCANNING</span>
+                    </div>
+                    <h3 class="text-[11px] font-bold font-mono tracking-widest text-zinc-400 uppercase mb-3">TACTICAL MAP CONTROLS</h3>
+                    
+                    <!-- Map toggles -->
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button onclick="changeMapStyle('dark')" id="btn-map-dark" class="px-3 py-2 rounded-lg bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                            TACTICAL
+                        </button>
+                        <button onclick="changeMapStyle('light')" id="btn-map-light" class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m12.022 12.022l.707-.707M9 12a3 3 0 116 0 3 3 0 01-6 0z"/></svg>
+                            LIGHT MAP
+                        </button>
+                    </div>
+
+                    <!-- Visual Overlays controls -->
+                    <div class="space-y-2 border-t border-zinc-800/60 pt-3">
+                        <span class="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">Visual Overlays</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer bg-black/20 p-2 rounded border border-zinc-800/40 hover:bg-black/40">
+                                <input type="checkbox" id="chk-range-rings" class="accent-emerald-500 rounded" checked onchange="toggleRangeRings()">
+                                <span class="text-xs text-zinc-300 font-mono">Range Rings</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer bg-black/20 p-2 rounded border border-zinc-800/40 hover:bg-black/40">
+                                <input type="checkbox" id="chk-sound" class="accent-emerald-500 rounded" checked>
+                                <span class="text-xs text-zinc-300 font-mono">Tactile Audio</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Airbases Interactive List -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold font-mono tracking-widest text-zinc-400 uppercase">ACTIVE BASES & INSTALLATIONS</h3>
+                        <span class="text-[10px] font-mono text-zinc-600 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800" id="base-count">7 SITES</span>
+                    </div>
+
+                    <!-- Airbase List container -->
+                    <div class="space-y-2 max-h-[340px] overflow-y-auto pr-1" id="airbase-list">
+                        <!-- Content generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Selected Installation Detail Panel -->
+                <div class="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 hidden space-y-4 shadow-xl" id="detail-panel">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" id="detail-code">TAB</span>
+                            <h2 class="text-lg font-bold text-white mt-1.5" id="detail-name">Tengah Air Base</h2>
+                        </div>
+                        <button onclick="closeDetailPanel()" class="text-zinc-500 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Metadata Grid -->
+                    <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div class="bg-black/40 p-2 rounded border border-zinc-800/50">
+                            <span class="block text-[9px] text-zinc-500 uppercase">Runway Dir</span>
+                            <span class="text-zinc-300 font-semibold" id="detail-runway">18 / 36</span>
+                        </div>
+                        <div class="bg-black/40 p-2 rounded border border-zinc-800/50">
+                            <span class="block text-[9px] text-zinc-500 uppercase">Frequencies</span>
+                            <span class="text-emerald-400 font-semibold" id="detail-frequency">122.0 MHz</span>
+                        </div>
+                        <div class="bg-black/40 p-2 rounded border border-zinc-800/50">
+                            <span class="block text-[9px] text-zinc-500 uppercase">Elevation</span>
+                            <span class="text-zinc-300 font-semibold" id="detail-elevation">15 m MSL</span>
+                        </div>
+                        <div class="bg-black/40 p-2 rounded border border-zinc-800/50">
+                            <span class="block text-[9px] text-zinc-500 uppercase">Coordinates</span>
+                            <span class="text-zinc-300 font-semibold" id="detail-coords">1.3875, 103.7081</span>
+                        </div>
+                    </div>
+
+                    <!-- Squadron Listing -->
+                    <div class="space-y-2">
+                        <span class="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">Assigned Squadrons & Assets</span>
+                        <div class="space-y-1.5" id="detail-squadrons">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Realtime Telemetry/Feed Footer inside Sidebar -->
+            <div class="p-4 border-t border-zinc-800/80 bg-zinc-950 shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-mono font-bold tracking-wider text-emerald-400 uppercase">C2 TELEMETRY FEED</span>
+                    <button onclick="clearTelemetry()" class="text-[9px] font-mono text-zinc-500 hover:text-zinc-300">CLEAR</button>
+                </div>
+                <div class="bg-black/60 rounded-lg p-2 h-32 overflow-y-auto font-mono text-[10px] text-zinc-400 border border-zinc-900 space-y-1.5" id="telemetry-logs">
+                    <!-- Logs dynamically created -->
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- CENTER TACTICAL MAP CONTAINER -->
+        <main class="flex-1 relative flex flex-col min-h-0 bg-zinc-900">
+            <!-- Leaflet Container -->
+            <div id="map" class="w-full h-full z-10"></div>
+
+            <!-- Active Flight Telemetry Overlay Banner -->
+        </main>
+
+    </div>
+
+    <!-- Leaflet Map JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Singapore Airbases Core Data Object
+        const airbasesData = [
+            {
+                id: "tengah",
+                code: "TAB",
+                name: "Tengah Air Base",
+                location: [1.3875, 103.7081],
+                runway: "18 / 36 (Length: 2,743m)",
+                frequency: "122.0 MHz (Approach: 130.0 MHz)",
+                elevation: "15 m / 50 ft MSL",
+                desc: "Home to the RSAF's cutting-edge fighter jets, airborne early warning aircraft, and advanced UAV systems. Known under the operational motto 'Always Vigilant'.",
+                squadrons: [
+                    { number: "111", asset: "G550 Airborne Early Warning", role: "Early Warning & Air Battle Control" },
+                    { number: "116", asset: "Hermes 450 UAV", role: "Tactical Reconnaissance" },
+                    { number: "140", asset: "F-16C Fighting Falcon", role: "Air Superiority / Interceptor" },
+                    { number: "143", asset: "F-16D Block 52 Fighting Falcon", role: "Strike Operations" }
+                ],
+                aircrafts: [
+                    { name: "F-16C Fighting Falcon", speed: 450, alt: 15000 },
+                    { name: "G550 AEW", speed: 320, alt: 28000 },
+                    { name: "Hermes 450 UAV", speed: 110, alt: 8000 }
+                ]
+            },
+            {
+                id: "payalebar",
+                code: "PLAB",
+                name: "Paya Lebar Air Base",
+                location: [1.3577, 103.9111],
+                runway: "02 / 20 (Length: 3,780m)",
+                frequency: "119.7 MHz (Approach: 125.1 MHz)",
+                elevation: "20 m / 65 ft MSL",
+                desc: "RSAF's core heavy fighter wing and transport hub, housing the F-15SG Eagles. Slated for future relocation in the 2030s to allow Changi Expansion.",
+                squadrons: [
+                    { number: "122", asset: "C-130H Hercules", role: "Heavy Tactical Airlift" },
+                    { number: "142", asset: "F-15SG Strike Eagle", role: "All-weather Multi-role Strike" },
+                    { number: "149", asset: "F-15SG Strike Eagle", role: "Deep Precision Strike" }
+                ],
+                aircrafts: [
+                    { name: "F-15SG Strike Eagle", speed: 520, alt: 18000 },
+                    { name: "C-130H Hercules", speed: 280, alt: 12000 }
+                ]
+            },
+            {
+                id: "sembawang",
+                code: "SBAB",
+                name: "Sembawang Air Base",
+                location: [1.4253, 103.8128],
+                runway: "Helipads & Dual Grass Strips",
+                frequency: "123.4 MHz (Control: 120.3 MHz)",
+                elevation: "26 m / 86 ft MSL",
+                desc: "The nerve center of Singapore's rotary-wing capability, housing attack, search & rescue, and heavy-lift utility helicopters.",
+                squadrons: [
+                    { number: "120", asset: "AH-64D Apache Longbow", role: "Anti-Armor / Attack" },
+                    { number: "123", asset: "S-70B Seahawk", role: "Maritime ASW / Naval Operations" },
+                    { number: "125", asset: "H225M Caracal", role: "Tactical Transport & SAR" },
+                    { number: "127", asset: "CH-47F Chinook", role: "Heavy Transport & Heli-lift" }
+                ],
+                aircrafts: [
+                    { name: "AH-64D Apache", speed: 150, alt: 3500 },
+                    { name: "CH-47F Chinook", speed: 130, alt: 2500 },
+                    { name: "H225M Caracal", speed: 140, alt: 3000 }
+                ]
+            },
+            {
+                id: "changieast",
+                code: "CAB-E",
+                name: "Changi Air Base East",
+                location: [1.3439, 104.0064],
+                runway: "02 / 20 (Length: 4,000m)",
+                frequency: "124.9 MHz",
+                elevation: "7 m / 22 ft MSL",
+                desc: "Modern maritime border defender base housing the multi-role tankers & F-16D flight divisions next to Changi's commercial corridors.",
+                squadrons: [
+                    { number: "112", asset: "Airbus A330 MRTT", role: "Aerial Refueling & Cargo" },
+                    { number: "145", asset: "F-16D Blk 52+ Fighting Falcon", role: "Precision Strike" }
+                ],
+                aircrafts: [
+                    { name: "F-16D+ Fighting Falcon", speed: 460, alt: 16000 },
+                    { name: "A330 MRTT Tanker", speed: 340, alt: 26000 }
+                ]
+            },
+            {
+                id: "changiwest",
+                code: "CAB-W",
+                name: "Changi Air Base West",
+                location: [1.3650, 103.9840],
+                runway: "Shared Changi Airport Runways",
+                frequency: "118.6 MHz",
+                elevation: "6 m / 20 ft MSL",
+                desc: "Co-located with Changi Commercial Airport, hosting critical surveillance, utility flights, and VIP transport configurations.",
+                squadrons: [
+                    { number: "121", asset: "Fokker 50", role: "Maritime Air Patrol & Utility" }
+                ],
+                aircrafts: [
+                    { name: "Fokker 50 MPA", speed: 200, alt: 10000 }
+                ]
+            },
+            {
+                id: "seletar",
+                code: "SLRT",
+                name: "Seletar Airfield Detachment",
+                location: [1.4169, 103.8678],
+                runway: "03 / 21 (Length: 1,840m)",
+                frequency: "122.7 MHz",
+                elevation: "11 m / 36 ft MSL",
+                desc: "RSAF Training Command base and dual-use aerospace logistics field handling basic instruction, simulations, and joint transport servicing.",
+                squadrons: [
+                    { number: "AFTC", asset: "Aviation Simulator & Ground Training", role: "Combat Training Command" }
+                ],
+                aircrafts: [
+                    { name: "Standard Transport Engine", speed: 180, alt: 5000 }
+                ]
+            },
+            {
+                id: "sudong",
+                code: "SDA",
+                name: "Pulau Sudong Airstrip",
+                location: [1.2053, 103.7189],
+                runway: "09 / 27 (Length: 2,440m)",
+                frequency: "Tactical Tactical Link Only",
+                elevation: "7 m / 22 ft MSL",
+                desc: "Offshore military emergency runway and active live-fire staging base. Restrictive military zone used heavily during scramble exercises.",
+                squadrons: [
+                    { number: "RSAF Det", asset: "Tactical Staging / Emergency Fueling", role: "Emergency Strategic Landing" }
+                ],
+                aircrafts: [
+                    { name: "F-15SG Staging Frame", speed: 480, alt: 12000 }
+                ]
+            }
+        ];
+
+        // Global Variables
+        let map;
+        let currentMapStyle = 'dark';
+        let activeBaseMarker = null;
+        let baseMarkers = [];
+        let rangeCircles = [];
+        let tacticalLogs = [];
+        let audioCtx = null;
+
+        // Leaflet Tile Layers
+        const mapStyles = {
+            dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            light: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        };
+        const tileAttribution = '&copy; <a href="https://carto.com/">CARTO</a> OpenStreetMap';
+
+        // --- STREAMING_CHUNK:Audio Engine Setup ---
+        // Audio Synthesizer (Sfx engine)
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type, pitch = 440, duration = 0.1, vol = 0.1) {
+            const soundOn = document.getElementById('chk-sound').checked;
+            if (!soundOn) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.type = type; // 'sine', 'sawtooth', 'triangle', 'square'
+                osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (err) {}
+        }
+
+        // --- STREAMING_CHUNK:Time clocks initialization ---
+        // Initialize Real-Time Clocks
+        function initClocks() {
+            setInterval(() => {
+                const now = new Date();
+                
+                // Singapore Time (SGT) is UTC+8
+                const sgtOffset = 8 * 60;
+                const localUtc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const sgtTime = new Date(localUtc + (sgtOffset * 60000));
+                
+                document.getElementById('clock-sgt').innerText = sgtTime.toTimeString().split(' ')[0];
+                document.getElementById('clock-zulu').innerText = now.toISOString().split('T')[1].substring(0, 8);
+            }, 1000);
+        }
+
+        // --- STREAMING_CHUNK:Telemetry logger mechanics ---
+        // Log telemetry event streams
+        function addTelemetryLog(msg, type = "info") {
+            const logsContainer = document.getElementById('telemetry-logs');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            
+            let color = "text-zinc-400";
+            if (type === "warning") color = "text-amber-400 font-bold";
+            if (type === "scramble") color = "text-red-400 font-bold";
+            if (type === "success") color = "text-emerald-400";
+
+            const logElement = document.createElement('div');
+            logElement.className = `text-[10px] leading-relaxed ${color}`;
+            logElement.innerHTML = `<span class="text-zinc-600">[${timeStr}]</span> ${msg}`;
+            
+            logsContainer.appendChild(logElement);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function clearTelemetry() {
+            document.getElementById('telemetry-logs').innerHTML = "";
+            playSound('sine', 180, 0.05, 0.15);
+        }
+
+        // --- STREAMING_CHUNK:Interactive map builder ---
+        // Initialize Interactive Cartographic Framework
+        function initMap() {
+            // Centered on Singapore geography
+            map = L.map('map', {
+                center: [1.3521, 103.8198],
+                zoom: 12,
+                minZoom: 11,
+                maxZoom: 17,
+                zoomControl: false
+            });
+
+            // Add Top-right Zoom Controls
+            L.control.zoom({
+                position: 'topright'
+            }).addTo(map);
+
+            // Set Tile Layer
+            L.tileLayer(mapStyles[currentMapStyle], {
+                attribution: tileAttribution
+            }).addTo(map);
+
+            // Populate Map Markers & List
+            renderAirbases();
+            addTelemetryLog("TACTICAL C2 SYSTEMS ONLINE - MAP RENDERED", "success");
+        }
+
+        function changeMapStyle(style) {
+            currentMapStyle = style;
+            const darkBtn = document.getElementById('btn-map-dark');
+            const lightBtn = document.getElementById('btn-map-light');
+
+            if (style === 'dark') {
+                darkBtn.className = "px-3 py-2 rounded-lg bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20";
+                lightBtn.className = "px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5";
+            } else {
+                lightBtn.className = "px-3 py-2 rounded-lg bg-zinc-200 border border-zinc-400 text-zinc-800 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-zinc-300/20";
+                darkBtn.className = "px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 text-xs font-mono font-bold flex items-center justify-center gap-1.5";
+            }
+
+            // Remove existing tile layer and apply new style
+            map.eachLayer((layer) => {
+                if (layer instanceof L.TileLayer) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            L.tileLayer(mapStyles[style], {
+                attribution: tileAttribution
+            }).addTo(map);
+
+            playSound('sine', 550, 0.08, 0.1);
+            addTelemetryLog(`MAP STYLE MODIFIED: ${style.toUpperCase()}`);
+        }
+
+        // --- STREAMING_CHUNK:Rendering Airbases on Map and Sidebar ---
+        // Render Singapore Airbases on UI sidebar and Map
+        function renderAirbases() {
+            const sidebarContainer = document.getElementById('airbase-list');
+            sidebarContainer.innerHTML = "";
+
+            airbasesData.forEach((base) => {
+                
+                // Custom Map Marker (Custom dynamic military design utilizing SVG)
+                const militaryIcon = L.divIcon({
+                    className: 'custom-military-marker',
+                    html: `
+                        <div class="relative flex items-center justify-center" style="width: 32px; height: 32px;" id="marker-${base.id}">
+                            <!-- Pulse outer ring -->
+                            <span class="absolute animate-ping w-8 h-8 rounded-full bg-emerald-500/10 opacity-75"></span>
+                            
+                            <!-- Static tactical diamond ring -->
+                            <div class="w-7 h-7 bg-zinc-950 border-2 border-emerald-500 rotate-45 flex items-center justify-center shadow-lg transition-transform hover:scale-125 duration-200">
+                                <span class="text-[9px] font-mono font-extrabold text-emerald-400 -rotate-45 block leading-none select-none">${base.code}</span>
+                            </div>
+                        </div>
+                    `,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                // Add to map
+                const marker = L.marker(base.location, { icon: militaryIcon }).addTo(map);
+                baseMarkers.push({ id: base.id, marker });
+
+                // Leaflet click handler
+                marker.on('click', () => {
+                    selectAirbase(base.id);
+                });
+
+                // Build Sidebar Row Card
+                const card = document.createElement('button');
+                card.className = "w-full text-left bg-zinc-900/30 border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 rounded-xl flex items-start justify-between transition-all hover:bg-zinc-900/60 group cursor-pointer";
+                card.id = `sidebar-card-${base.id}`;
+                card.onclick = () => selectAirbase(base.id);
+
+                card.innerHTML = `
+                    <div class="space-y-1 select-none">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${base.code}</span>
+                            <span class="text-sm font-bold text-zinc-100 group-hover:text-white transition-colors">${base.name}</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-500 line-clamp-2">${base.desc}</p>
+                    </div>
+                    <span class="text-zinc-600 group-hover:text-emerald-400 transition-colors ml-2 self-center">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </span>
+                `;
+
+                sidebarContainer.appendChild(card);
+            });
+        }
+
+        // Handle Active Selection of an Airbase
+        function selectAirbase(baseId) {
+            const base = airbasesData.find(b => b.id === baseId);
+            if (!base) return;
+
+            // Pan map smoothly to the selected airbase coordinates
+            map.setView(base.location, 13.5, { animate: true, duration: 1.0 });
+
+            // Highlight Active Base marker
+            // Reset all markers
+            airbasesData.forEach(b => {
+                const markerEl = document.querySelector(`#marker-${b.id} div`);
+                if (markerEl) {
+                    markerEl.className = markerEl.className.replace('border-red-500', 'border-emerald-500');
+                    markerEl.querySelector('span').className = markerEl.querySelector('span').className.replace('text-red-400', 'text-emerald-400');
+                }
+                const cardEl = document.getElementById(`sidebar-card-${b.id}`);
+                if (cardEl) {
+                    cardEl.className = cardEl.className.replace('border-emerald-500/50 bg-emerald-950/10', 'border-zinc-800/80 bg-zinc-900/30');
+                }
+            });
+
+            // Highlight active marker and sidebar card
+            setTimeout(() => {
+                const activeEl = document.querySelector(`#marker-${base.id} div`);
+                if (activeEl) {
+                    activeEl.className = activeEl.className.replace('border-emerald-500', 'border-red-500');
+                    activeEl.querySelector('span').className = activeEl.querySelector('span').className.replace('text-emerald-400', 'text-red-400');
+                }
+            }, 100);
+
+            const activeCard = document.getElementById(`sidebar-card-${base.id}`);
+            if (activeCard) {
+                activeCard.className = activeCard.className.replace('border-zinc-800/80 bg-zinc-900/30', 'border-emerald-500/50 bg-emerald-950/10');
+                // Scroll into view gently if needed
+                activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            // Draw Range Rings around the selected Airbase
+            drawRangeRings(base.location);
+
+            // Populate Info details panel on the left sidebar
+            document.getElementById('detail-panel').classList.remove('hidden');
+            document.getElementById('detail-code').innerText = base.code;
+            document.getElementById('detail-name').innerText = base.name;
+            document.getElementById('detail-runway').innerText = base.runway;
+            document.getElementById('detail-frequency').innerText = base.frequency;
+            document.getElementById('detail-elevation').innerText = base.elevation;
+            document.getElementById('detail-coords').innerText = `${base.location[0].toFixed(4)} N, ${base.location[1].toFixed(4)} E`;
+
+            // Clear and Load assigned squadrons
+            const squadContainer = document.getElementById('detail-squadrons');
+            squadContainer.innerHTML = "";
+            base.squadrons.forEach(sq => {
+                const sqDiv = document.createElement('div');
+                sqDiv.className = "flex items-center justify-between bg-black/30 p-2.5 rounded border border-zinc-800/60";
+                sqDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-xs text-white bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">${sq.number} SQN</span>
+                        <span class="text-[11px] text-zinc-300 font-sans font-semibold">${sq.asset}</span>
+                    </div>
+                    <span class="text-[10px] text-zinc-500 italic">${sq.role}</span>
+                `;
+                squadContainer.appendChild(sqDiv);
+            });
+
+            // Play Synth beep feedback
+            playSound('sine', 650, 0.08, 0.15);
+            addTelemetryLog(`TACTICAL LOG: SELECTED ${base.name.toUpperCase()} (INT: ${base.code})`);
+        }
+
+        // Close details panel helper
+        function closeDetailPanel() {
+            document.getElementById('detail-panel').classList.add('hidden');
+            
+            // Reset active marker styles
+            airbasesData.forEach(b => {
+                const markerEl = document.querySelector(`#marker-${b.id} div`);
+                if (markerEl) {
+                    markerEl.className = markerEl.className.replace('border-red-500', 'border-emerald-500');
+                    markerEl.querySelector('span').className = markerEl.querySelector('span').className.replace('text-red-400', 'text-emerald-400');
+                }
+                const cardEl = document.getElementById(`sidebar-card-${b.id}`);
+                if (cardEl) {
+                    cardEl.className = cardEl.className.replace('border-emerald-500/50 bg-emerald-950/10', 'border-zinc-800/80 bg-zinc-900/30');
+                }
+            });
+
+            // Remove Range Rings
+            removeRangeRings();
+            playSound('sine', 400, 0.05, 0.1);
+        }
+
+        // --- STREAMING_CHUNK:Drawing Range Rings overlay ---
+        // Range Rings (Airfield protection/Zone alerts mapping)
+        function drawRangeRings(centerCoords) {
+            removeRangeRings();
+
+            if (!document.getElementById('chk-range-rings').checked) return;
+
+            // 5km Inner Control Zone (Red)
+            const innerCircle = L.circle(centerCoords, {
+                radius: 5000,
+                color: '#ef4444',
+                weight: 1.5,
+                fillColor: '#ef4444',
+                fillOpacity: 0.03,
+                dashArray: '5, 5'
+            }).addTo(map);
+
+            // 15km Outer Patrol Ring (Emerald)
+            const outerCircle = L.circle(centerCoords, {
+                radius: 15000,
+                color: '#10b981',
+                weight: 1.2,
+                fillColor: '#10b981',
+                fillOpacity: 0.01,
+                dashArray: '2, 6'
+            }).addTo(map);
+
+            rangeCircles.push(innerCircle, outerCircle);
+        }
+
+        function removeRangeRings() {
+            rangeCircles.forEach(circle => map.removeLayer(circle));
+            rangeCircles = [];
+        }
+
+        function toggleRangeRings() {
+            const checked = document.getElementById('chk-range-rings').checked;
+            if (checked) {
+                // Find currently highlighted base (if detail panel is open)
+                const isDetailVisible = !document.getElementById('detail-panel').classList.contains('hidden');
+                if (isDetailVisible) {
+                    const code = document.getElementById('detail-code').innerText;
+                    const activeBase = airbasesData.find(b => b.code === code);
+                    if (activeBase) drawRangeRings(activeBase.location);
+                }
+            } else {
+                removeRangeRings();
+            }
+            playSound('sine', 500, 0.06, 0.1);
+        }
+
+
+        // --- STREAMING_CHUNK:Global Bootstrapping ---
+        window.onload = function() {
+            initClocks();
+            initMap();
+            // Automatically select the first base
+            selectAirbase('tengah');
+        };
+    </script>
+</body>
+</html>

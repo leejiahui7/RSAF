@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAF History Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --ink:#1B1A17;
+    --ink-soft:#5B564C;
+    --line:#DCD5C4;
+    --card:#FFFFFF;
+    --accent:#1F5E4E;
+    --accent-soft:#E4EEE9;
+    --gold:#B8863A;
+    --wrong:#B3453B;
+    --wrong-soft:#F5E5E3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    line-height:1.55;
+    padding:32px 16px 60px;
+  }
+  .wrap{max-width:620px; margin:0 auto;}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:12px;
+  }
+  .eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--gold);}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(24px, 4vw, 30px);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .intro{color:var(--ink-soft); font-size:14.5px; margin:0 0 24px; max-width:56ch;}
+
+  .progress-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .progress-track{
+    flex:1; height:6px; background:var(--line); border-radius:999px; margin:0 12px; overflow:hidden;
+  }
+  .progress-fill{height:100%; background:var(--accent); border-radius:999px; width:0%; transition:width 0.25s ease;}
+
+  .q-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:22px;
+    margin-bottom:16px;
+  }
+  .q-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--gold);
+    text-transform:uppercase;
+    margin-bottom:6px;
+    display:block;
+  }
+  .q-text{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:17px;
+    margin:0 0 16px;
+    line-height:1.4;
+  }
+  .options{display:flex; flex-direction:column; gap:9px;}
+  .option{
+    display:flex; align-items:flex-start; gap:10px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:11px 13px;
+    cursor:pointer;
+    font-size:14px;
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .option:hover{border-color:var(--accent);}
+  .option input{margin-top:2px; accent-color:var(--accent);}
+  .option.selected{border-color:var(--accent); background:var(--accent-soft);}
+  .option.correct{border-color:var(--accent); background:var(--accent-soft); font-weight:600;}
+  .option.incorrect{border-color:var(--wrong); background:var(--wrong-soft);}
+  .option.disabled{cursor:default;}
+
+  .explain{
+    display:none;
+    margin-top:14px;
+    padding:12px 14px;
+    background:#FBF9F4;
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .explain.show{display:block;}
+  .explain strong{color:var(--ink);}
+
+  .btn-row{display:flex; justify-content:flex-end; margin-top:10px;}
+  .btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.03em;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:999px;
+    padding:10px 20px;
+    cursor:pointer;
+  }
+  .btn:disabled{background:var(--line); color:var(--ink-soft); cursor:not-allowed;}
+  .btn.secondary{background:var(--card); color:var(--accent); border:1.5px solid var(--accent);}
+
+  .result-card{
+    display:none;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:28px 24px;
+    text-align:center;
+  }
+  .result-card.show{display:block;}
+  .result-score{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:40px;
+    color:var(--accent);
+    margin:6px 0;
+  }
+  .result-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .result-msg{font-size:14px; color:var(--ink-soft); margin:10px 0 20px; max-width:44ch; margin-left:auto; margin-right:auto;}
+
+  footer{
+    text-align:center;
+    margin-top:28px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    letter-spacing:0.02em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span>Trivia · 5 questions</div>
+  <h1>SAF History Quiz</h1>
+  <p class="intro">Five multiple choice questions on the founding years of the Singapore Armed Forces. Pick an answer for each question to see if it's correct.</p>
+
+  <div class="progress-row">
+    <span id="progress-label">Question 1 of 5</span>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <span id="score-label">Score: 0</span>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <div class="result-card" id="result-card">
+    <span class="result-label">Final score</span>
+    <div class="result-score"><span id="result-score">0</span> / 5</div>
+    <p class="result-msg" id="result-msg"></p>
+    <button class="btn" onclick="restartQuiz()">Try again</button>
+  </div>
+
+  <footer>ST GEN AI (ADVANCED) COURSE · 1 JULY 2026</footer>
+</div>
+
+<script>
+  const questions = [
+    {
+      q: "Singapore's armed forces had to be built up almost from scratch after independence. In what year was the Ministry of Interior and Defence set up to lead this effort?",
+      options: ["1959", "1963", "1965", "1971"],
+      correct: 2,
+      explain: "The Ministry of Interior and Defence was established in August 1965, right after independence, with Dr Goh Keng Swee as its first Minister."
+    },
+    {
+      q: "A foreign military advisory team arrived in Singapore in 1965 and stayed for nine years, helping set up the SAF's organisation, doctrine, and training. Which country sent this team?",
+      options: ["United Kingdom", "Israel", "United States", "Australia"],
+      correct: 1,
+      explain: "An Israeli military advisory team arrived in 1965 and remained in Singapore for nine years, shaping the early SAF's structure, training, and equipment."
+    },
+    {
+      q: "Compulsory National Service became law with the passing of an amendment act. In what year did this happen?",
+      options: ["1965", "1966", "1967", "1970"],
+      correct: 2,
+      explain: "The National Service (Amendment) Act was passed in 1967. The first batch of about 9,000 servicemen was called up that year."
+    },
+    {
+      q: "The Republic of Singapore Air Force wasn't always known by that name. What was it called when it was first formed in 1968, before its 1975 renaming?",
+      options: ["Singapore Air Wing", "Royal Singapore Air Corps", "Singapore Air Defence Command", "Air Task Force Singapore"],
+      correct: 2,
+      explain: "The air force began in 1968 as the Singapore Air Defence Command, or SADC. It was renamed the Republic of Singapore Air Force on 1 April 1975."
+    },
+    {
+      q: "Singapore's military tradition goes back further than 1965. Which unit, formed in 1854, is considered the earliest predecessor of today's armed forces?",
+      options: ["Straits Settlements Police", "Singapore Volunteer Rifle Corps", "Malayan Regiment", "Johor Military Force"],
+      correct: 1,
+      explain: "The Singapore Volunteer Rifle Corps was formed in 1854. It was later renamed the Singapore Volunteer Corps in 1901, and its lineage eventually fed into the People's Defence Force in 1965."
+    }
+  ];
+
+  let current = 0;
+  let score = 0;
+  let answered = false;
+
+  const container = document.getElementById('quiz-container');
+  const progressFill = document.getElementById('progress-fill');
+  const progressLabel = document.getElementById('progress-label');
+  const scoreLabel = document.getElementById('score-label');
+  const resultCard = document.getElementById('result-card');
+
+  function renderQuestion(){
+    answered = false;
+    const item = questions[current];
+    progressLabel.textContent = `Question ${current + 1} of ${questions.length}`;
+    scoreLabel.textContent = `Score: ${score}`;
+    progressFill.style.width = `${(current / questions.length) * 100}%`;
+
+    const optionsHtml = item.options.map((opt, i) => `
+      <label class="option" data-index="${i}">
+        <input type="radio" name="answer" value="${i}">
+        <span>${opt}</span>
+      </label>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="q-card">
+        <span class="q-num">Question ${current + 1}</span>
+        <p class="q-text">${item.q}</p>
+        <div class="options">${optionsHtml}</div>
+        <div class="explain" id="explain-box"><strong>Answer:</strong> ${item.options[item.correct]}. ${item.explain}</div>
+        <div class="btn-row">
+          <button class="btn" id="next-btn" disabled>Check answer</button>
+        </div>
+      </div>
+    `;
+
+    const optionEls = container.querySelectorAll('.option');
+    const nextBtn = document.getElementById('next-btn');
+
+    optionEls.forEach(el => {
+      el.addEventListener('click', () => {
+        if (answered) return;
+        optionEls.forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        el.querySelector('input').checked = true;
+        nextBtn.disabled = false;
+      });
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (!answered) {
+        // Reveal correct answer
+        const selected = container.querySelector('input[name="answer"]:checked');
+        const selectedIndex = selected ? parseInt(selected.value) : -1;
+
+        optionEls.forEach((el, i) => {
+          el.classList.add('disabled');
+          if (i === item.correct) el.classList.add('correct');
+          else if (i === selectedIndex) el.classList.add('incorrect');
+        });
+
+        if (selectedIndex === item.correct) score++;
+        scoreLabel.textContent = `Score: ${score}`;
+        document.getElementById('explain-box').classList.add('show');
+        answered = true;
+        nextBtn.textContent = current === questions.length - 1 ? 'See results' : 'Next question';
+      } else {
+        current++;
+        if (current < questions.length) {
+          renderQuestion();
+        } else {
+          showResults();
+        }
+      }
+    });
+  }
+
+  function showResults(){
+    progressFill.style.width = '100%';
+    progressLabel.textContent = `Question ${questions.length} of ${questions.length}`;
+    container.innerHTML = '';
+    resultCard.classList.add('show');
+    document.getElementById('result-score').textContent = score;
+
+    let msg;
+    if (score === 5) msg = "Full marks. That's a solid grasp of how the SAF came together after 1965.";
+    else if (score >= 3) msg = "Good result. A few of the founding dates are worth another look.";
+    else msg = "Worth a second attempt. The explanations under each question cover the key dates.";
+    document.getElementById('result-msg').textContent = msg;
+  }
+
+  function restartQuiz(){
+    current = 0;
+    score = 0;
+    resultCard.classList.remove('show');
+    renderQuestion();
+  }
+
+  renderQuestion();
+</script>
+</body>
+</html>

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartScan - Premium Multi-Receipt AI Scanner</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for crisp premium UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f19;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Glassmorphism utility classes */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+    </style>
+</head>
+<body class="text-zinc-100 min-h-screen flex flex-col">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="glass-panel border-b border-zinc-800/80 px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xl font-extrabold tracking-tight text-white">Smart<span class="text-indigo-400">Scan</span></h1>
+                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">Gemini 2.5 Flash</span>
+                </div>
+                <p class="text-xs text-zinc-400 mt-0.5">Automated batch receipt optical data extraction & analytics</p>
+            </div>
+        </div>
+
+        <!-- Connection / Live Stats Indicator -->
+        <div class="flex items-center gap-4 text-xs">
+            <button onclick="loadSampleReceipt()" class="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/80 transition-all font-semibold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Load Demo Receipt
+            </button>
+            <div id="key-indicator" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-zinc-800/80">
+                <span id="key-dot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span id="key-label" class="text-zinc-400 font-mono">API KEY NOT SET</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- API KEY BAR -->
+    <div class="bg-indigo-950/30 border-b border-indigo-500/20 px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <label class="text-[11px] font-mono text-indigo-300 uppercase tracking-wider shrink-0">Gemini API Key</label>
+        <input type="password" id="api-key-input" placeholder="Paste your Gemini API key to enable extraction"
+               class="flex-1 w-full sm:w-auto bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500">
+        <button onclick="saveApiKey()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-all shrink-0">Save key</button>
+        <span class="text-[10px] text-zinc-500 shrink-0">Stays in this browser tab only. Never saved or sent anywhere else. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Get a free key</a></span>
+    </div>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto">
+
+        <!-- LEFT SIDEBAR: CONTROLS & BATCH FILE UPLOADER -->
+        <section class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- EXTRANEOUS STATS BANNER -->
+            <div class="glass-panel rounded-2xl p-5 grid grid-cols-3 gap-3">
+                <div class="text-center border-r border-zinc-800/80">
+                    <span class="text-[10px] text-zinc-400 uppercase tracking-wider block">Total Spent</span>
+                    <span id="stat-total-spent" class="text-lg font-bold text-emerald-400 font-mono">$0.00</span>
+                </div>
+                <div class="text-center border-r border-zinc-800/80">
+                    <span class="text-[10px] text-zinc-400 uppercase tracking-wider block">Processed</span>
+                    <span id="stat-count" class="text-lg font-bold text-white font-mono">0</span>
+                </div>
+                <div class="text-center">
+                    <span class="text-[10px] text-zinc-400 uppercase tracking-wider block">Avg Spend</span>
+                    <span id="stat-avg" class="text-lg font-bold text-indigo-400 font-mono">$0.00</span>
+                </div>
+            </div>
+
+            <!-- DRAG AND DROP ZONE -->
+            <div class="glass-panel rounded-2xl p-6 relative flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 hover:border-indigo-500/50 transition-colors cursor-pointer group"
+                 id="drop-zone" onclick="triggerFileInput()">
+                <input type="file" id="file-input" multiple accept="image/*" class="hidden" onchange="handleFileSelection(event)">
+                
+                <div class="w-16 h-16 rounded-full bg-zinc-900/80 flex items-center justify-center mb-4 border border-zinc-800/60 group-hover:border-indigo-500/20 group-hover:scale-110 transition-transform">
+                    <svg class="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <p class="text-sm font-semibold text-zinc-200 text-center">Drag & Drop Receipt Photos</p>
+                <p class="text-xs text-zinc-400 text-center mt-1">Supports PNG, JPG, WebP formats</p>
+                
+                <span class="mt-4 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-all shadow-md shadow-indigo-600/10">
+                    Select Files
+                </span>
+            </div>
+
+            <!-- UPLOADER QUEUE LIST -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 flex-1 min-h-[280px] max-h-[450px] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-zinc-800/60 pb-3">
+                    <h3 class="text-xs font-bold font-mono tracking-wider text-zinc-400 uppercase">Uploaded Files Queue</h3>
+                    <span id="queue-badge" class="px-2 py-0.5 text-[10px] font-mono rounded-full bg-zinc-800 text-zinc-400">0 Files</span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-2.5 pr-1" id="queue-container">
+                    <!-- Placeholder when empty -->
+                    <div id="queue-empty-state" class="h-full flex flex-col items-center justify-center text-center text-zinc-500 p-4">
+                        <svg class="w-10 h-10 text-zinc-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <p class="text-xs">No receipts currently in queue</p>
+                    </div>
+                </div>
+
+                <button onclick="processAllPending()" id="btn-process-all" disabled
+                        class="w-full py-2.5 rounded-xl bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                    Extract Pending Items
+                </button>
+            </div>
+
+        </section>
+
+        <!-- RIGHT SIDE: EXTRACTION REPORT GRID TABLE -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+            
+            <div class="glass-panel rounded-2xl p-5 flex-1 flex flex-col overflow-hidden min-h-[500px]">
+                
+                <!-- Table Controls / Header Actions -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/60 pb-4 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Extracted Receipt Ledger</h2>
+                        <p class="text-xs text-zinc-400 mt-0.5">Edit fields inline. All items saved in temporary session memory.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+                        <button onclick="clearAllData()" class="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 border border-transparent hover:border-zinc-700/85 transition-all">
+                            Clear Ledger
+                        </button>
+                        <button onclick="exportToCSV()" id="btn-export" disabled
+                                class="px-4 py-2 rounded-xl bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:border-transparent disabled:cursor-not-allowed border border-emerald-600 text-black font-bold text-xs font-mono tracking-wider uppercase flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Export to CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ledger Table Container -->
+                <div class="flex-1 overflow-x-auto min-h-[300px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-zinc-800/80 text-zinc-400 text-[11px] font-mono tracking-wider uppercase">
+                                <th class="py-3 px-4">Brand / Shop</th>
+                                <th class="py-3 px-4">Date</th>
+                                <th class="py-3 px-4">Product Details</th>
+                                <th class="py-3 px-4 text-right">Amount</th>
+                                <th class="py-3 px-4 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-body" class="divide-y divide-zinc-800/40 text-xs">
+                            <!-- Injected rows via JS -->
+                            <tr id="ledger-empty-state">
+                                <td colspan="5" class="py-12 text-center text-zinc-500">
+                                    <svg class="w-12 h-12 text-zinc-700 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7v12m0 0l-4-4m4 4l4-4m0 6V7m0 0l-4 4m4-4l4 4m5 2h3m-3 4h3m-6-4h.01M19 16h.01" />
+                                    </svg>
+                                    <p class="text-xs font-semibold text-zinc-400">Ledger is empty</p>
+                                    <p class="text-[11px] text-zinc-500 mt-0.5">Process receipt files on the left to populate</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FLOATING SIDE-BY-SIDE INSPECTION MODAL -->
+    <div id="inspector-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md items-center justify-center p-4 md:p-8 z-50 hidden">
+        <div class="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/40">
+                <div>
+                    <h3 class="font-bold text-white text-base">Receipt Audit & Inspection</h3>
+                    <p class="text-xs text-zinc-400 mt-0.5" id="modal-subtitle">Cross-examine extracted metadata with real source images</p>
+                </div>
+                <button onclick="closeInspector()" class="text-zinc-500 hover:text-white hover:bg-zinc-800 p-1.5 rounded-lg transition-all">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Content (Split Side-By-Side) -->
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+                
+                <!-- Left: Interactive Image Cropper/Viewer -->
+                <div class="bg-black/50 p-6 flex items-center justify-center overflow-auto border-b md:border-b-0 md:border-r border-zinc-800/80">
+                    <img id="modal-img-source" class="max-w-full max-h-[50vh] md:max-h-[60vh] object-contain rounded-lg shadow-lg border border-zinc-800/80" src="" alt="Receipt Scan">
+                </div>
+
+                <!-- Right: Metadata Inspector Fields -->
+                <div class="p-6 overflow-y-auto space-y-6">
+                    <h4 class="text-xs font-bold font-mono text-indigo-400 uppercase tracking-widest border-b border-zinc-800/60 pb-2">Extracted Parameters</h4>
+                    
+                    <div class="space-y-4">
+                        <!-- Shop Name -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Brand / Shop Name</label>
+                            <input type="text" id="modal-field-shop" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <!-- Date -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Date</label>
+                            <input type="text" id="modal-field-date" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <!-- Product Description -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Product Details</label>
+                            <textarea id="modal-field-desc" rows="4" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Total Amount ($)</label>
+                            <input type="number" step="0.01" id="modal-field-amount" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Action Footer -->
+            <div class="px-6 py-4 border-t border-zinc-800 bg-zinc-950/40 flex items-center justify-end gap-3">
+                <button onclick="closeInspector()" class="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all">
+                    Discard Changes
+                </button>
+                <button onclick="saveInspectorData()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 font-bold text-xs text-white transition-all shadow-md shadow-indigo-600/15">
+                    Apply Corrections
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- NOTIFICATION POPUP PANEL -->
+    <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-xl border glass-panel shadow-2xl flex items-center gap-3 z-50 transform translate-y-24 opacity-0 transition-all duration-300">
+        <span id="toast-icon" class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-indigo-500/20 text-indigo-400">i</span>
+        <p id="toast-message" class="text-xs font-semibold text-zinc-200">Processing queue completed</p>
+    </div>
+
+    <!-- MAIN CORE LOGIC SCRIPT -->
+    <script>
+        // Global State
+        let apiKey = ""; // Set by the person via the API key bar above. Kept in memory only.
+        let receiptQueue = []; // Holds items currently processing or uploaded
+        let extractedLedger = []; // Final extracted and validated data list
+        let activeInspectorId = null; // Currently open receipt in auditor modal
+
+        // Target models in preview environment
+        const modelName = "gemini-2.5-flash-preview-09-2025";
+
+        // DOM elements cache
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const queueContainer = document.getElementById('queue-container');
+        const ledgerBody = document.getElementById('ledger-body');
+        const btnProcessAll = document.getElementById('btn-process-all');
+        const btnExport = document.getElementById('btn-export');
+
+        // API key handling — session memory only, never persisted
+        function saveApiKey() {
+            const val = document.getElementById('api-key-input').value.trim();
+            apiKey = val;
+            const dot = document.getElementById('key-dot');
+            const label = document.getElementById('key-label');
+            if (apiKey) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                label.innerText = "API KEY READY";
+                showToast("API key saved for this session", "success");
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-rose-500";
+                label.innerText = "API KEY NOT SET";
+            }
+        }
+
+        // Drag and drop events setup
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-indigo-500', 'bg-indigo-950/5');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/5');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        });
+
+        function triggerFileInput() {
+            fileInput.click();
+        }
+
+        function handleFileSelection(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        // Process incoming files into memory queue
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) {
+                    showToast("Only image files are supported", "error");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64String = event.target.result;
+                    
+                    const queueItem = {
+                        id: 'rec-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                        name: file.name,
+                        file: file,
+                        base64: base64String, // Includes dataUrl header prefix
+                        status: 'pending', // pending, processing, done, failed
+                        errorMessage: null,
+                        extractedData: null
+                    };
+
+                    receiptQueue.push(queueItem);
+                    updateQueueUI();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Helper to display dynamic feedback notification toast
+        function showToast(message, type = "info") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = message;
+            if (type === "success") {
+                toast.className = "fixed bottom-6 right-6 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-950/80 text-emerald-200 shadow-2xl flex items-center gap-3 z-50 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.innerText = "✓";
+                toastIcon.className = "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-emerald-500/20 text-emerald-400";
+            } else if (type === "error") {
+                toast.className = "fixed bottom-6 right-6 px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-950/80 text-rose-200 shadow-2xl flex items-center gap-3 z-50 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.innerText = "✕";
+                toastIcon.className = "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-rose-500/20 text-rose-400";
+            } else {
+                toast.className = "fixed bottom-6 right-6 px-4 py-3 rounded-xl border border-indigo-500/20 bg-indigo-950/80 text-indigo-200 shadow-2xl flex items-center gap-3 z-50 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.innerText = "i";
+                toastIcon.className = "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-indigo-500/20 text-indigo-400";
+            }
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+
+        // Synchronize and update files list on Sidebar Queue
+        function updateQueueUI() {
+            const badge = document.getElementById('queue-badge');
+            badge.innerText = `${receiptQueue.length} Files`;
+
+            if (receiptQueue.length === 0) {
+                document.getElementById('queue-empty-state').classList.remove('hidden');
+                queueContainer.innerHTML = '';
+                queueContainer.appendChild(document.getElementById('queue-empty-state'));
+                btnProcessAll.disabled = true;
+                return;
+            }
+
+            document.getElementById('queue-empty-state').classList.add('hidden');
+            
+            // Re-render items in queue
+            const itemsHtml = receiptQueue.map(item => {
+                let statusIcon = '';
+                let statusClass = 'text-zinc-400';
+                
+                if (item.status === 'pending') {
+                    statusIcon = `
+                        <svg class="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    `;
+                } else if (item.status === 'processing') {
+                    statusIcon = `
+                        <svg class="w-5 h-5 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 15.89M21 20v-5h-.581" />
+                        </svg>
+                    `;
+                    statusClass = 'text-indigo-400 font-semibold';
+                } else if (item.status === 'done') {
+                    statusIcon = `
+                        <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    `;
+                    statusClass = 'text-emerald-500';
+                } else if (item.status === 'failed') {
+                    statusIcon = `
+                        <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    `;
+                    statusClass = 'text-rose-400';
+                }
+
+                return `
+                    <div class="glass-card flex items-center justify-between p-3 rounded-xl border border-zinc-800/80 transition-all hover:border-zinc-700/80">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <img src="${item.base64}" class="w-10 h-10 rounded-lg object-cover border border-zinc-700/60 shrink-0" alt="thumbnail">
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-zinc-200 truncate pr-2">${item.name}</p>
+                                <p class="text-[10px] uppercase font-mono tracking-wide mt-0.5 ${statusClass}">${item.status}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            ${statusIcon}
+                            <button onclick="removeItemFromQueue('${item.id}')" class="text-zinc-600 hover:text-rose-400 p-1 rounded-lg transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            queueContainer.innerHTML = itemsHtml;
+
+            // Manage Process button accessibility state
+            const hasPending = receiptQueue.some(item => item.status === 'pending');
+            btnProcessAll.disabled = !hasPending;
+        }
+
+        // Delete item from queue list
+        function removeItemFromQueue(id) {
+            receiptQueue = receiptQueue.filter(item => item.id !== id);
+            updateQueueUI();
+        }
+
+        // --- EXTREMELY CRITICAL: exponential backoff retry network loop ---
+        async function fetchWithExponentialBackoff(url, fetchOptions, maxRetries = 5) {
+            let delay = 1000; // start 1 second delay
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, fetchOptions);
+                    if (response.ok) {
+                        return response;
+                    }
+                    // Handle rate limiting (429) or transient server errors (5xx)
+                    if (response.status === 429 || response.status >= 500) {
+                        // wait and retry
+                    } else {
+                        throw new Error(`Execution error: Received code ${response.status}`);
+                    }
+                } catch (err) {
+                    if (i === maxRetries - 1) {
+                        throw err; // Out of retries, bubble up failure
+                    }
+                }
+                // Exponential sleep calculation
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2; // Double delay: 1s, 2s, 4s, 8s, 16s
+            }
+        }
+
+        // Core extraction loop trigger (Batch Processing)
+        async function processAllPending() {
+            if (!apiKey) {
+                showToast("Enter and save a Gemini API key first", "error");
+                return;
+            }
+
+            const pendingItems = receiptQueue.filter(item => item.status === 'pending');
+            if (pendingItems.length === 0) return;
+
+            btnProcessAll.disabled = true;
+            showToast(`Initiating extraction on ${pendingItems.length} items...`, "info");
+
+            for (const item of pendingItems) {
+                item.status = 'processing';
+                updateQueueUI();
+
+                try {
+                    // Extract data using Gemini API
+                    const result = await runGeminiExtraction(item.base64);
+                    item.status = 'done';
+                    item.extractedData = result;
+
+                    // Push completed item to Ledger system
+                    extractedLedger.unshift({
+                        id: item.id,
+                        image: item.base64,
+                        shopName: result.shopName || "Unknown Brand",
+                        date: result.date || "Unknown Date",
+                        productDescription: result.productDescription || "No summary provided",
+                        totalAmount: parseFloat(result.totalAmount) || 0.00
+                    });
+
+                } catch (error) {
+                    item.status = 'failed';
+                    item.errorMessage = error.message;
+                    showToast(`Failed to parse: ${item.name}`, "error");
+                }
+
+                updateQueueUI();
+                renderLedgerUI();
+            }
+
+            showToast("Queue processing completed", "success");
+        }
+
+        // --- GEMINI REST API DRIVER FOR IMAGE UNDERSTANDING ---
+        async function runGeminiExtraction(base64DataUrl) {
+            // Split and extract correct MIME type and raw base64 data
+            const match = base64DataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+            if (!match) {
+                throw new Error("Invalid base64 payload layout");
+            }
+            const mimeType = match[1];
+            const base64RawData = match[2];
+
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+            // Define Schema structure to force structural valid JSON response matching requested fields
+            const payload = {
+                contents: [
+                    {
+                        parts: [
+                            { 
+                                text: "Read this receipt or invoice. Extract the brand name / shop name, purchase date, product description summary, and the final payment total amount." 
+                            },
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: base64RawData
+                                }
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            shopName: { 
+                                type: "STRING", 
+                                description: "The name of the merchant, brand, shop, or vendor." 
+                            },
+                            date: { 
+                                type: "STRING", 
+                                description: "The date of purchase. Format strictly to YYYY-MM-DD or readable format." 
+                            },
+                            productDescription: { 
+                                type: "STRING", 
+                                description: "A concise bullet list or single paragraph summarizing purchased products or services." 
+                            },
+                            totalAmount: { 
+                                type: "NUMBER", 
+                                description: "The final total amount paid including tax. Real number only." 
+                            }
+                        },
+                        required: ["shopName", "date", "productDescription", "totalAmount"]
+                    }
+                }
+            };
+
+            const response = await fetchWithExponentialBackoff(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            // Safe traversal of response structure matching API Guidelines
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!rawText) {
+                throw new Error("Empty response returned from the model");
+            }
+
+            try {
+                return JSON.parse(rawText.trim());
+            } catch (err) {
+                throw new Error("Failed to parse structural JSON response");
+            }
+        }
+
+        // Render Ledger table from state
+        function renderLedgerUI() {
+            if (extractedLedger.length === 0) {
+                ledgerBody.innerHTML = `
+                    <tr id="ledger-empty-state">
+                        <td colspan="5" class="py-12 text-center text-zinc-500">
+                            <svg class="w-12 h-12 text-zinc-700 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7v12m0 0l-4-4m4 4l4-4m0 6V7m0 0l-4 4m4-4l4 4m5 2h3m-3 4h3m-6-4h.01M19 16h.01" />
+                            </svg>
+                            <p class="text-xs font-semibold text-zinc-400">Ledger is empty</p>
+                            <p class="text-[11px] text-zinc-500 mt-0.5">Process receipt files on the left to populate</p>
+                        </td>
+                    </tr>
+                `;
+                btnExport.disabled = true;
+                updateStatsPanel();
+                return;
+            }
+
+            btnExport.disabled = false;
+
+            const rowsHtml = extractedLedger.map((row) => {
+                return `
+                    <tr class="hover:bg-zinc-800/25 transition-colors group">
+                        <td class="py-3 px-4 font-semibold text-zinc-200">
+                            <input type="text" value="${row.shopName}" onchange="updateField('${row.id}', 'shopName', this.value)" 
+                                   class="bg-transparent border border-transparent hover:border-zinc-700/80 focus:border-indigo-500 focus:bg-zinc-900 rounded p-1 w-full text-xs font-semibold text-zinc-100 focus:outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-zinc-300 font-mono">
+                            <input type="text" value="${row.date}" onchange="updateField('${row.id}', 'date', this.value)" 
+                                   class="bg-transparent border border-transparent hover:border-zinc-700/80 focus:border-indigo-500 focus:bg-zinc-900 rounded p-1 w-full text-xs font-mono text-zinc-300 focus:outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-zinc-400 max-w-xs truncate">
+                            <input type="text" value="${row.productDescription}" onchange="updateField('${row.id}', 'productDescription', this.value)" 
+                                   class="bg-transparent border border-transparent hover:border-zinc-700/80 focus:border-indigo-500 focus:bg-zinc-900 rounded p-1 w-full text-xs text-zinc-400 focus:outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-right font-bold text-emerald-400 font-mono">
+                            <div class="flex items-center justify-end gap-1">
+                                <span>$</span>
+                                <input type="number" step="0.01" value="${row.totalAmount.toFixed(2)}" onchange="updateField('${row.id}', 'totalAmount', this.value)" 
+                                       class="bg-transparent border border-transparent hover:border-zinc-700/80 focus:border-indigo-500 focus:bg-zinc-900 rounded p-1 text-right w-20 text-xs font-mono font-bold text-emerald-400 focus:outline-none">
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button onclick="openInspector('${row.id}')" class="text-indigo-400 hover:text-indigo-300 p-1.5 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-all font-semibold" title="Inspect Source Receipt">
+                                    Audit
+                                </button>
+                                <button onclick="deleteLedgerRow('${row.id}')" class="text-zinc-500 hover:text-rose-400 p-1.5 rounded hover:bg-zinc-800 transition-colors" title="Delete Row">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            ledgerBody.innerHTML = rowsHtml;
+            updateStatsPanel();
+        }
+
+        // Inline direct update state handlers
+        function updateField(id, field, value) {
+            const item = extractedLedger.find(r => r.id === id);
+            if (item) {
+                if (field === 'totalAmount') {
+                    item[field] = parseFloat(value) || 0;
+                } else {
+                    item[field] = value;
+                }
+                updateStatsPanel();
+            }
+        }
+
+        function deleteLedgerRow(id) {
+            extractedLedger = extractedLedger.filter(r => r.id !== id);
+            renderLedgerUI();
+            showToast("Row removed from ledger", "info");
+        }
+
+        function clearAllData() {
+            extractedLedger = [];
+            receiptQueue = [];
+            renderLedgerUI();
+            updateQueueUI();
+            showToast("Ledger and queue successfully wiped", "info");
+        }
+
+        // Calculate and display stats
+        function updateStatsPanel() {
+            const total = extractedLedger.reduce((sum, row) => sum + row.totalAmount, 0);
+            const count = extractedLedger.length;
+            const avg = count > 0 ? total / count : 0;
+
+            document.getElementById('stat-total-spent').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('stat-count').innerText = count;
+            document.getElementById('stat-avg').innerText = `$${avg.toFixed(2)}`;
+        }
+
+        // --- EXPORT MATRIX TO CSV IMPLEMENTATION ---
+        function exportToCSV() {
+            if (extractedLedger.length === 0) return;
+
+            // Construct headers
+            const headers = ["Brand / Shop Name", "Purchase Date", "Products Description", "Total Paid Amount ($)"];
+            
+            // Clean values mapping (escape quotes and commas)
+            const rows = extractedLedger.map(row => {
+                const cleanShop = row.shopName.replace(/"/g, '""');
+                const cleanDate = row.date.replace(/"/g, '""');
+                const cleanDesc = row.productDescription.replace(/"/g, '""');
+                const cleanAmount = row.totalAmount.toFixed(2);
+
+                return `"${cleanShop}","${cleanDate}","${cleanDesc}",${cleanAmount}`;
+            });
+
+            const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            
+            // Trigger temporary download anchor
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `smartscan_audit_report_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("Ledger CSV exported!", "success");
+        }
+
+        // --- AUDITOR / INSPECTOR MODAL PANEL MECHANICS ---
+        function openInspector(id) {
+            const item = extractedLedger.find(r => r.id === id);
+            if (!item) return;
+
+            activeInspectorId = id;
+
+            document.getElementById('modal-img-source').src = item.image;
+            document.getElementById('modal-field-shop').value = item.shopName;
+            document.getElementById('modal-field-date').value = item.date;
+            document.getElementById('modal-field-desc').value = item.productDescription;
+            document.getElementById('modal-field-amount').value = item.totalAmount;
+
+            document.getElementById('inspector-modal').classList.remove('hidden');
+            document.getElementById('inspector-modal').classList.add('flex');
+        }
+
+        function closeInspector() {
+            document.getElementById('inspector-modal').classList.add('hidden');
+            document.getElementById('inspector-modal').classList.remove('flex');
+            activeInspectorId = null;
+        }
+
+        function saveInspectorData() {
+            if (!activeInspectorId) return;
+
+            const item = extractedLedger.find(r => r.id === activeInspectorId);
+            if (item) {
+                item.shopName = document.getElementById('modal-field-shop').value;
+                item.date = document.getElementById('modal-field-date').value;
+                item.productDescription = document.getElementById('modal-field-desc').value;
+                item.totalAmount = parseFloat(document.getElementById('modal-field-amount').value) || 0;
+
+                renderLedgerUI();
+                showToast("Corrections applied successfully", "success");
+            }
+
+            closeInspector();
+        }
+
+        // --- SAMPLE GENERATOR MOCK DEMO RECEIPT ---
+        // Preload an elegant base64 sample receipt so users can immediately test AI capabilities
+        function loadSampleReceipt() {
+            // Mock sample receipt visual (Minimalistic generated invoice image)
+            const sampleCanvas = document.createElement('canvas');
+            sampleCanvas.width = 400;
+            sampleCanvas.height = 550;
+            const ctx = sampleCanvas.getContext('2d');
+
+            // Draw clean paper background
+            ctx.fillStyle = '#fdfdfd';
+            ctx.fillRect(0, 0, 400, 550);
+
+            // Invoice structural markings
+            ctx.fillStyle = '#111827';
+            ctx.font = 'bold 24px sans-serif';
+            ctx.fillText('COFFEE & GRIND', 40, 60);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '12px monospace';
+            ctx.fillText('78 ROBINSON RD, SINGAPORE', 40, 85);
+            ctx.fillText('PHONE: +65 6789 0123', 40, 105);
+            ctx.fillText('DATE: 2026-07-01 14:22', 40, 125);
+
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.beginPath();
+            ctx.moveTo(40, 145);
+            ctx.lineTo(360, 145);
+            ctx.stroke();
+
+            // Items listing
+            ctx.fillStyle = '#111827';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('QTY/ITEM', 40, 175);
+            ctx.textAlign = 'right';
+            ctx.fillText('PRICE', 360, 175);
+            ctx.textAlign = 'left';
+
+            ctx.font = '13px sans-serif';
+            ctx.fillText('2x Iced Nitro Cold Brew', 40, 210);
+            ctx.textAlign = 'right';
+            ctx.fillText('$13.80', 360, 210);
+            ctx.textAlign = 'left';
+
+            ctx.fillText('1x Avocado Sourdough Toast', 40, 245);
+            ctx.textAlign = 'right';
+            ctx.fillText('$16.50', 360, 245);
+            ctx.textAlign = 'left';
+
+            ctx.fillText('1x Almond Butter Croissant', 40, 280);
+            ctx.textAlign = 'right';
+            ctx.fillText('$6.20', 360, 280);
+            ctx.textAlign = 'left';
+
+            // Divider
+            ctx.beginPath();
+            ctx.moveTo(40, 310);
+            ctx.lineTo(360, 310);
+            ctx.stroke();
+
+            // Subtotal, Tax, and Grand Total
+            ctx.fillStyle = '#4b5563';
+            ctx.font = '13px sans-serif';
+            ctx.fillText('Subtotal', 40, 340);
+            ctx.textAlign = 'right';
+            ctx.fillText('$36.50', 360, 340);
+            ctx.textAlign = 'left';
+
+            ctx.fillText('GST (9%)', 40, 370);
+            ctx.textAlign = 'right';
+            ctx.fillText('$3.29', 360, 370);
+            ctx.textAlign = 'left';
+
+            // Final total highlight
+            ctx.fillStyle = '#111827';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText('GRAND TOTAL', 40, 420);
+            ctx.textAlign = 'right';
+            ctx.fillText('$39.79', 360, 420);
+            ctx.textAlign = 'left';
+
+            // Footer notes
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = 'italic 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Thank you for dining with us!', 200, 480);
+            ctx.fillText('Invoice #CG-89352-2026', 200, 500);
+
+            // Extract canvas dataUrl
+            const sampleBase64 = sampleCanvas.toDataURL('image/png');
+
+            // Inject to Queue list as pending item
+            const sampleItem = {
+                id: 'rec-sample-' + Date.now(),
+                name: "coffee_shop_receipt_demo.png",
+                base64: sampleBase64,
+                status: 'pending',
+                errorMessage: null,
+                extractedData: null
+            };
+
+            receiptQueue.push(sampleItem);
+            updateQueueUI();
+            showToast("Demo receipt loaded! Click Extract to analyze.", "info");
+        }
+
+        // Allow pressing Enter in the API key field to save
+        document.getElementById('api-key-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveApiKey();
+        });
+    </script>
+</body>
+</html>
