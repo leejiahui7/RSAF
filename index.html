@@ -118,7 +118,7 @@
     margin:0 0 8px;
   }
   .card p{font-size:14px; color:var(--ink-soft); margin:0;}
-  .card .tag{
+  .tag{
     display:inline-block;
     font-family:'JetBrains Mono', monospace;
     font-size:10.5px;
@@ -129,6 +129,44 @@
     padding:3px 9px;
     border-radius:999px;
     margin-bottom:12px;
+  }
+
+  .definition-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:12px;
+    padding:22px;
+    margin-top:16px;
+  }
+  .definition-box h3{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  .definition-box > p{font-size:14.5px; color:var(--ink-soft); margin:0 0 18px; max-width:64ch;}
+  .definition-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:14px;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+  .definition-item{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .definition-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--gold);
+    font-weight:600;
+    flex-shrink:0;
+    padding-top:1px;
   }
 
   .model-row{
@@ -195,6 +233,10 @@
     border:none;
     display:block;
     background:#09090b;
+  }
+  iframe.app-embed-short{
+    height:640px;
+    background:var(--paper);
   }
   .demo-caption{
     display:flex; justify-content:space-between; align-items:center;
@@ -286,6 +328,26 @@
         <span class="tag">Model selection</span>
         <h3>Match model to task</h3>
         <p>Use a lighter model such as Haiku for routine tasks. Reserve a higher tier model such as Sonnet 5 for complex tasks.</p>
+      </div>
+    </div>
+
+    <div class="definition-box">
+      <span class="tag">Core concept</span>
+      <h3>Computational thinking</h3>
+      <p>The method of solving problems in a way that a computer, or an AI model, can execute. It is the skill that ties together crafting a problem statement, prompt engineering, and agentic AI use. Without it, none of the three work well.</p>
+      <div class="definition-grid">
+        <div class="definition-item">
+          <span class="definition-num">01</span>
+          <span>Breaking down challenges into smaller, manageable parts.</span>
+        </div>
+        <div class="definition-item">
+          <span class="definition-num">02</span>
+          <span>Identifying the actual problem before attempting a solution.</span>
+        </div>
+        <div class="definition-item">
+          <span class="definition-num">03</span>
+          <span>Designing logical, ordered steps to solve each part.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -431,16 +493,28 @@
     <div class="section-head">
       <span class="section-num">06 · DEMO</span>
       <h2>Apps built during the session</h2>
-      <p class="section-sub">Three working tools, each built to test what the models covered in this course can generate. Switch tabs to try each one.</p>
+      <p class="section-sub">Five working tools, each built to test what the models covered in this course can generate. Switch tabs to try each one.</p>
     </div>
 
     <div class="app-tabs" role="tablist">
-      <button class="app-tab active" data-tab="receipt" onclick="switchAppTab('receipt')">Receipt Scanner</button>
-      <button class="app-tab" data-tab="map" onclick="switchAppTab('map')">Airbase Map</button>
+      <button class="app-tab active" data-tab="snake" onclick="switchAppTab('snake')">Snake Game</button>
+      <button class="app-tab" data-tab="receipt" onclick="switchAppTab('receipt')">Receipt Scanner</button>
+      <button class="app-tab" data-tab="quiz" onclick="switchAppTab('quiz')">SAF History Quiz</button>
       <button class="app-tab" data-tab="clock" onclick="switchAppTab('clock')">Interactive Clock</button>
+      <button class="app-tab" data-tab="map" onclick="switchAppTab('map')">Airbase Map</button>
     </div>
 
-    <div class="app-panel active" id="panel-receipt">
+    <div class="app-panel active" id="panel-snake">
+      <div class="demo-frame-wrap">
+        <iframe class="app-embed app-embed-short" src="snake.html" title="Sammy's Snake Adventure game" loading="lazy"></iframe>
+      </div>
+      <div class="demo-caption">
+        <span>A kids' snake game with a d-pad, swipe controls, and keyboard support.</span>
+        <a href="snake.html" target="_blank" rel="noopener">Open full screen ↗</a>
+      </div>
+    </div>
+
+    <div class="app-panel" id="panel-receipt">
       <div class="demo-frame-wrap">
         <iframe class="app-embed" src="receipt-scanner.html" title="SmartScan receipt extraction app" loading="lazy"></iframe>
       </div>
@@ -450,13 +524,13 @@
       </div>
     </div>
 
-    <div class="app-panel" id="panel-map">
+    <div class="app-panel" id="panel-quiz">
       <div class="demo-frame-wrap">
-        <iframe class="app-embed" src="map.html" title="Singapore airbase interactive map" loading="lazy"></iframe>
+        <iframe class="app-embed app-embed-short" src="saf-quiz.html" title="SAF History trivia quiz" loading="lazy"></iframe>
       </div>
       <div class="demo-caption">
-        <span>Interactive map of Singapore's airbases with detail panels and a flight patrol simulator.</span>
-        <a href="map.html" target="_blank" rel="noopener">Open full screen ↗</a>
+        <span>Five multiple choice questions on the founding years of the Singapore Armed Forces, with answers and explanations.</span>
+        <a href="saf-quiz.html" target="_blank" rel="noopener">Open full screen ↗</a>
       </div>
     </div>
 
@@ -467,6 +541,16 @@
       <div class="demo-caption">
         <span>Runs on live system time. Click and hold the tip of the second hand to set time manually.</span>
         <a href="clock.html" target="_blank" rel="noopener">Open full screen ↗</a>
+      </div>
+    </div>
+
+    <div class="app-panel" id="panel-map">
+      <div class="demo-frame-wrap">
+        <iframe class="app-embed" src="map.html" title="Singapore airbase interactive map" loading="lazy"></iframe>
+      </div>
+      <div class="demo-caption">
+        <span>Interactive map of Singapore's airbases with detail panels for runway, frequency, and squadron data.</span>
+        <a href="map.html" target="_blank" rel="noopener">Open full screen ↗</a>
       </div>
     </div>
   </div>
