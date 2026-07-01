@@ -189,7 +189,7 @@
     border:1px solid var(--line);
     box-shadow:0 18px 46px rgba(27,26,23,0.12);
   }
-  iframe.clock-embed{
+  iframe.app-embed{
     width:100%;
     height:760px;
     border:none;
@@ -206,6 +206,33 @@
   }
   .demo-caption a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent);}
 
+  .app-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .app-tab{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.03em;
+    padding:9px 16px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .app-tab:hover{border-color:var(--accent);}
+  .app-tab.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  .app-panel{display:none;}
+  .app-panel.active{display:block;}
+
   footer{
     padding:32px 24px 48px;
     text-align:center;
@@ -218,7 +245,7 @@
   @media (max-width:640px){
     .funnel-row{grid-template-columns:1fr; gap:6px;}
     .funnel-pct{text-align:left;}
-    iframe.clock-embed{height:920px;}
+    iframe.app-embed{height:920px;}
   }
 </style>
 </head>
@@ -403,15 +430,44 @@
   <div class="wrap">
     <div class="section-head">
       <span class="section-num">06 · DEMO</span>
-      <h2>App built in session: interactive clock</h2>
-      <p class="section-sub">Runs on live system time. The second hand responds to cursor position. Click and hold the tip of the second hand to set time manually.</p>
+      <h2>Apps built during the session</h2>
+      <p class="section-sub">Three working tools, each built to test what the models covered in this course can generate. Switch tabs to try each one.</p>
     </div>
-    <div class="demo-frame-wrap">
-      <iframe class="clock-embed" src="clock.html" title="Interactive clock app built with Gemini Canvas" loading="lazy"></iframe>
+
+    <div class="app-tabs" role="tablist">
+      <button class="app-tab active" data-tab="receipt" onclick="switchAppTab('receipt')">Receipt Scanner</button>
+      <button class="app-tab" data-tab="map" onclick="switchAppTab('map')">Airbase Map</button>
+      <button class="app-tab" data-tab="clock" onclick="switchAppTab('clock')">Interactive Clock</button>
     </div>
-    <div class="demo-caption">
-      <span>Built with Gemini Canvas during the session</span>
-      <a href="clock.html" target="_blank" rel="noopener">Open full screen ↗</a>
+
+    <div class="app-panel active" id="panel-receipt">
+      <div class="demo-frame-wrap">
+        <iframe class="app-embed" src="receipt-scanner.html" title="SmartScan receipt extraction app" loading="lazy"></iframe>
+      </div>
+      <div class="demo-caption">
+        <span>Batch receipt scanner. Extracts shop, date, items, and total from a photo. Requires a Gemini API key to run extraction.</span>
+        <a href="receipt-scanner.html" target="_blank" rel="noopener">Open full screen ↗</a>
+      </div>
+    </div>
+
+    <div class="app-panel" id="panel-map">
+      <div class="demo-frame-wrap">
+        <iframe class="app-embed" src="map.html" title="Singapore airbase interactive map" loading="lazy"></iframe>
+      </div>
+      <div class="demo-caption">
+        <span>Interactive map of Singapore's airbases with detail panels and a flight patrol simulator.</span>
+        <a href="map.html" target="_blank" rel="noopener">Open full screen ↗</a>
+      </div>
+    </div>
+
+    <div class="app-panel" id="panel-clock">
+      <div class="demo-frame-wrap">
+        <iframe class="app-embed" src="clock.html" title="Interactive clock app built with Gemini Canvas" loading="lazy"></iframe>
+      </div>
+      <div class="demo-caption">
+        <span>Runs on live system time. Click and hold the tip of the second hand to set time manually.</span>
+        <a href="clock.html" target="_blank" rel="noopener">Open full screen ↗</a>
+      </div>
     </div>
   </div>
 </section>
@@ -419,6 +475,17 @@
 <footer>
   ST GEN AI (ADVANCED) COURSE · 1 JULY 2026
 </footer>
+
+<script>
+  function switchAppTab(name) {
+    document.querySelectorAll('.app-tab').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tab === name);
+    });
+    document.querySelectorAll('.app-panel').forEach(function(panel) {
+      panel.classList.toggle('active', panel.id === 'panel-' + name);
+    });
+  }
+</script>
 
 </body>
 </html>
